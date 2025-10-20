@@ -32,7 +32,7 @@ if (length(args) == 0) {
 } else {
   update <- FALSE
 }
-functions::setup()
+functions::setup(server = "GC")
 outlier::theme_outlier()
 path = "/home/jmt/cierre-jornada"
 path_source = "/home/jmt/dev/r/outlier/cierre_jornada"
