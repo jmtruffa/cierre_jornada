@@ -115,11 +115,13 @@ if (!lecap_prices$ok && is.null(lecap_prices$data)) {
     
     bonos_pesos_prices_df <- bonos_pesos_prices$data
     
-    functions::dbWriteDF(
-      table = "precios_bonos_pesos",
-      df    = dplyr::filter(bonos_pesos_prices_df, date > max_fecha_bonos_pesos),
-      server = server, port = port, append = TRUE
-    )
+    if (update) {
+      functions::dbWriteDF(
+        table = "precios_bonos_pesos",
+        df    = dplyr::filter(bonos_pesos_prices_df, date > max_fecha_bonos_pesos),
+        server = server, port = port, append = TRUE
+      )
+    }
     
     # re-leer desde tabla por eventuales vencidos
     bonos_pesos_prices_all <- functions::dbExecuteQuery(
@@ -173,7 +175,123 @@ if (!lecap_prices$ok && is.null(lecap_prices$data)) {
         )
       
       curva_lecaps <- dplyr::bind_rows(curva_lecaps, bonos_pesos)
+
+      lecap_dinamica = dbExecuteQuery(query = paste0("select date, ticker, price from historico_lecaps where date >= '", from_dinamica, "'"), server = server, port = port)
+      curva_lecaps_dinamica = finance::tasasLecap(lecap_dinamica, server = server, port = port)
+
     }
-  }
+    }
 }
 
+############################################################
+# Graficamos
+g_lecap_tem = curva_lecaps %>% 
+    filter(date == from | date == to) %>% 
+    ggplot(aes(x=mduration, y=tem, label = ticker, group = date, color = as.factor(date))) +
+    theme_usado() +
+    geom_point(size=1) +
+    geom_smooth(
+      data = dplyr::filter(curva_lecaps %>% filter(date == from | date == to), grepl("_tmr$", ticker)),
+      method = "lm", formula = y ~ poly(x, 2), se = FALSE,
+      linewidth = 1, linetype = "dashed", show.legend = FALSE
+    ) +
+    geom_smooth(
+      data = dplyr::filter(curva_lecaps %>% filter(date == from | date == to), !grepl("_tmr$", ticker)),
+      method = "lm", formula = y ~ poly(x, 2), se = FALSE,
+      linewidth = 1, linetype = "solid", show.legend = FALSE
+    ) +
+    #geom_smooth(method = "lm", formula = y ~ poly(x,2), se=F, show.legend = FALSE, linewidth = 1) +
+    ggrepel::geom_text_repel(show.legend = F) +
+    scale_color_manual(name = NULL, values = .paleta) +  
+    scale_y_continuous(breaks = breaks_extended(10), 
+                       labels = scales::percent,
+                       #limits = c(.03, .0425)
+    ) +
+    scale_x_continuous(breaks = breaks_extended(10)) +
+    labs(title = "CURVA LECAPS",
+         subtitle = paste0('Último dato: ', max(curva_lecaps$date)),
+         y = 'TEM',
+         x = 'duration (días)',
+         caption = paste0(.pie, " en base a precios de mercado."))
+  
+  grabaGrafo(variable = g_lecap_tem, path = path)
+
+g_lecap_tna = curva_lecaps %>%
+    filter(date == from |date == to) %>%
+    ggplot(aes(x=mduration, y=tna, group = date, color = as.factor(date))) +
+    theme_usado() +
+    geom_point(size=1) +
+    #geom_smooth(method = "lm", formula = y ~ poly(x,2), se=F, show.legend = FALSE, linewidth = 1) +
+    geom_smooth(
+      data = dplyr::filter(curva_lecaps %>% filter(date == from | date == to), grepl("_tmr$", ticker)),
+      method = "lm", formula = y ~ poly(x, 2), se = FALSE,
+      linewidth = 1, linetype = "dashed", show.legend = FALSE
+    ) +
+    geom_smooth(
+      data = dplyr::filter(curva_lecaps %>% filter(date == from | date == to), !grepl("_tmr$", ticker)),
+      method = "lm", formula = y ~ poly(x, 2), se = FALSE,
+      linewidth = 1, linetype = "solid", show.legend = FALSE
+    ) +
+  
+    ggrepel::geom_text_repel(aes(label = ticker), show.legend = F) +
+    scale_color_manual(name = NULL, values = .paleta) +  
+    scale_y_continuous(breaks = breaks_extended(10), 
+                       labels = scales::percent,
+                       #limits = c(.03, .0425)
+    ) +
+    scale_x_continuous(breaks = breaks_extended(10)) +
+    labs(title = "CURVA PESOS",
+         subtitle = paste0('Último dato: ', max(curva_lecaps$date)),
+         y = 'TNA',
+         x = 'duration (días)',
+         caption = paste0(.pie, " en base a precios de mercado."))
+    
+grabaGrafo(variable = g_lecap_tna, path = path)
+
+g_lecap_dinamica_tem = curva_lecaps_dinamica %>%
+    filter(tem > 0, date>="2025-01-01") %>% 
+    ggplot(aes(x = date, y = tem, color = ticker, label = ticker)) + 
+    
+    theme_usado() +
+    geom_point() +
+    geom_line(linewidth = 1) +
+    #geom_smooth(se = F) +
+    
+    scale_x_date(date_breaks = "1 month", labels = date_format("%d-%b", locale = "es"),
+                 expand = c(0.07,0.0)) +
+    
+    scale_y_continuous(breaks = breaks_extended(10), 
+                       labels = scales::percent) +
+    
+    labs(title = "CURVA LECAP - DINAMICA",
+         subtitle = paste0('Último dato: ', tail(curva_lecaps_dinamica, n = 1) %>% pull(date)),
+         y = 'TEM',
+         x = '',
+         caption = paste0(.pie, " en base a precios de mercado."))+
+    theme(legend.title =  element_blank()) + guides(color = guide_legend(ncol = 14))
+  
+  grabaGrafo(variable = g_lecap_dinamica_tem, path = path) 
+
+g_lecap_dinamica_tna = curva_lecaps_dinamica %>%
+    filter(tem > 0, date>="2025-01-01") %>% 
+    ggplot(aes(x = date, y = tna, color = ticker, label = ticker)) + 
+    
+    theme_usado() +
+    geom_point() +
+    geom_line(linewidth = 1) +
+    #geom_smooth(se = F) +
+    
+    scale_x_date(date_breaks = "1 month", labels = date_format("%d-%b", locale = "es"),
+                 expand = c(0.07,0.0)) +
+    
+    scale_y_continuous(breaks = breaks_extended(10), 
+                       labels = scales::percent) +
+    
+    labs(title = "CURVA LECAP - DINAMICA",
+         subtitle = paste0('Último dato: ', tail(curva_lecaps_dinamica, n = 1) %>% pull(date)),
+         y = 'TNA',
+         x = '',
+         caption = paste0(.pie, " en base a precios de mercado."))+
+    theme(legend.title =  element_blank()) + guides(color = guide_legend(ncol = 14))
+  
+  grabaGrafo(variable = g_lecap_dinamica_tna, path = path) 

@@ -125,9 +125,9 @@ grabaGrafo(variable = g_mlc_comprasBCRA, path = path)
 # la serieCal trae los datos de los días hábiles, basado en un calendario, para 
 # no omitir ningun día y asegurar que si alguna de las tablas no tiene valroes para un día
 # que en realidad fue hábil, se vería un NA en la tabla.
-g_mlc_tablaMLC = serieCal(from = min(volTodos$date), to = max(volTodos$date), server = server, port = port) %>% 
-  left_join(volTodos) %>%  
-  left_join(compras) %>% 
+g_mlc_tablaMLC = serieCal(from = min(vol_mulc$date), to = max(vol_mulc$date), server = server, port = port) %>% 
+  left_join(vol_mulc) %>%  
+  left_join(compras_bcra) %>% 
   filter(date>="2023-12-01") %>% 
   group_by(`Año` = year(date), Mes = month(date)) %>% 
   summarise(`Compras BCRA` = sum(comprasBCRA) / 1e6,
@@ -140,8 +140,7 @@ g_mlc_tablaMLC = serieCal(from = min(volTodos$date), to = max(volTodos$date), se
   flextable::flextable() %>% 
   flextable::footnote(i = 1, 
                       j = 1, 
-                      value = as_paragraph(paste0('Millones USD al: ', volTodos %>% tail(n=1) %>% pull(date)))) %>% 
-  #theme_box() %>% 
+                      value = as_paragraph(paste0('Millones USD al: ', vol_mulc %>% tail(n=1) %>% pull(date)))) %>% 
   colformat_double(digits = 0, big.mark = ".", decimal.mark = ",") %>% 
   colformat_char(j=3) %>% 
   align(align="center", part = "header") %>% 
@@ -153,9 +152,9 @@ grabaTabla2(variable = g_mlc_tablaMLC, path = path)
 
 
 ###### ultima semana
-g_mlc_compras_semana_mulc = serieCal(from = min(volTodos$date), to = max(volTodos$date), server = server, port = port) %>% 
-  left_join(volTodos) %>%  
-  left_join(compras) %>% 
+g_mlc_compras_semana_mulc = serieCal(from = min(vol_mulc$date), to = max(vol_mulc$date), server = server, port = port) %>% 
+  left_join(vol_mulc) %>%  
+  left_join(compras_bcra) %>% 
   filter(date >= lubridate::floor_date(Sys.Date(), unit="week") +1) %>% 
   summarise(`Compras BCRA` = sum(comprasBCRA) / 1e6,
             `Volumen Divisa` = sum(volumen) / 1e6,
@@ -167,7 +166,7 @@ g_mlc_compras_semana_mulc = serieCal(from = min(volTodos$date), to = max(volTodo
   flextable::flextable() %>% 
   flextable::footnote(i = 1, 
                       j = 1, 
-                      value = as_paragraph(paste0('Millones USD al: ', volTodos %>% tail(n=1) %>% pull(date)))) %>% 
+                      value = as_paragraph(paste0('Millones USD al: ', vol_mulc %>% tail(n=1) %>% pull(date)))) %>% 
   colformat_double(digits = 0, big.mark = ".", decimal.mark = ",") %>% 
   colformat_char(j=3) %>% 
   align(align="center", part = "header") %>% 
@@ -184,16 +183,16 @@ grabaTabla2(variable = g_mlc_compras_semana_mulc, path = path)
 
 ultimo_dia_fila = mulc %>% 
   mutate(demanda = volumen - comprasBCRA) %>% 
-  filter(date >= "2024-08-01") %>% 
+  filter(date >= "2024-11-01") %>% 
   group_by(mes = month(date)) %>% 
   mutate(fila = row_number()) %>% tail(n=1) %>% pull(fila)
 
 g_mlc_demanda_mlc_puntual = mulc %>% 
   mutate(demanda = volumen - comprasBCRA) %>% 
-  filter(date >= "2024-08-01") %>% 
+  filter(date >= "2024-11-01") %>% 
   group_by(mes = month(date)) %>% 
   mutate(fila = row_number()) %>% 
-  mutate(mes = factor(mes, levels = c(8:12, 1:3))) %>% 
+  mutate(mes = factor(mes, levels = c(11:12, 1:10))) %>% 
   
   ggplot(aes(x = fila, y = demanda, group = mes)) +
   theme_usado() +
@@ -221,14 +220,14 @@ meses_es <- c("Jul", "Ago", "Sep", "Oct", "Nov", "Dic", "Ene", "Feb", "Mar", "Ab
 
 mulc_prepared <- mulc %>% 
   mutate(demanda = volumen - comprasBCRA) %>% 
-  filter(date >= "2024-07-01") %>% 
+  filter(date >= "2025-01-01") %>% 
   mutate(mes_num = month(date)) %>% 
   group_by(mes_num) %>% 
   arrange(date) %>% 
   mutate(fila = row_number(),
          demandaAc = cumsum(demanda)) %>% 
   ungroup() %>% 
-  mutate(mes = factor(mes_num, levels = c(7:12, 1:4), labels = meses_es))  # Asigna etiquetas de mes en español
+  mutate(mes = factor(mes_num, levels = c(1:10), labels = meses_es))  # Asigna etiquetas de mes en español
 
 labels_df <- mulc_prepared %>% 
   group_by(mes_num) %>% 
@@ -327,7 +326,7 @@ g_mlc_pct_mep_mlc = mulc %>%
   #scale_x_continuous(breaks = seq(1,30, 1)) +
   scale_fill_manual(name = "Mes", values = .paleta) +
   labs(title = "MEP COMO PORCENTAJE DEL VOLUMEN TOTAL",
-       subtitle = paste0('Datos al ', df %>% tail(n=1) %>% pull(date)),
+       subtitle = paste0('Datos al ', mulc %>% tail(n=1) %>% pull(date)),
        y = '',
        x = '',
        caption = paste0(.pie, " en base a BCRA")) +

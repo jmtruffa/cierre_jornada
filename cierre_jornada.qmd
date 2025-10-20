@@ -1,0 +1,296 @@
+---
+title: "cierreJornada"
+format: pdf
+---
+
+## Cierre Jornada `r Sys.Date()`
+
+```{r init, echo = FALSE}
+knitr::opts_chunk$set(comment = "")
+library(htmltools)
+# Se ejecuta como rmarkdown::render("~/OneDrive/outlier/docs/tablasGraficos/cierre_jornada.qmd", envir = .GlobalEnv)
+```
+
+**MULC**
+
+```{r mulc, echo = FALSE}
+knitr::opts_chunk$set(comment = "")
+grafPct %>% tail() %>% flextable() %>% width(j="date", width = 1.) %>%   align(align="center", part = "all")
+```
+
+<br>
+
+**RESERVAS**
+
+```{r reservas, echo = FALSE}
+knitr::opts_chunk$set(comment = "")
+reservas %>% mutate(var=valor - lag(valor)) %>% tail() %>% select(date, reservasTXT, var) %>% flextable() %>% width(j="date", width = 1.) %>%   align(align="center", part = "all")
+```
+
+<br>
+
+**FX**
+
+```{r fx, echo = FALSE}
+knitr::opts_chunk$set(comment = "")
+#fx %>% select (date, mepAL, varD_mepAL, varS_mepAL, ccl3, varD_ccl3, varS_ccl3, canjeCCL3, A3500, brechaTXT) %>% tail() %>% print(n = Inf, width = Inf)
+tabla_fx
+```
+
+<br>
+
+**ABS/EXP VIA COMPRAS RESERVAS Y OTROS. Recordar que la info viene con retraso**
+
+```{r var, echo = FALSE}
+knitr::opts_chunk$set(comment = "")
+# EXPANSION CONTRACCION BCRA por reservas/utilidades/operaciones rofex desde el 1 día del mes anterior trae los datos
+query = "
+select date as \"Fecha\", 
+round(\"vdFeOtrasOpTNResto\"::numeric, 0) as \"Otras Op TN Resto\", 
+round(\"vdFeOtrasOpTNAT\"::numeric, 0) as \"Otras Op TN AT\", 
+round(\"vdFeOtrasOpTNTU\"::numeric, 0) as \"Transferencia Utilidades\", 
+round(\"vdFeComSP\"::numeric, 0) as \"Compras Reservas al SPrivado\", 
+round(\"vdFeComTN\"::numeric, 0) as \"Compras Reservas al TN\" 
+from \"bmBCRA\" 
+where date >= date_trunc('month', current_date - interval '1 month') 
+  and \"tipoSerie\" = 'D'
+
+"
+resultado = dbExecuteQuery(query = query, server = server, port = port)
+library(flextable)
+
+flextable(resultado) %>%
+  set_header_labels(
+    Fecha = "Fecha",
+    `Otras Op TN Resto` = "Otras Op TN Resto",
+    `Otras Op TN AT` = "Otras Op TN AT",
+    `Transferencia Utilidades` = "Transferencia Utilidades",
+    `Compras Reservas al SPrivado` = "Compras Reservas al SPrivado",
+    `Compras Reservas al TN` = "Compras Reservas al TN"
+  ) %>%
+  colformat_num(j = 2:6, digits = 2, big.mark = ".", decimal.mark = ",") %>%
+  autofit()
+```
+
+<br>
+
+**DEPOS GOBIERNO, EN PESOS Y USD**
+
+```{r gob, echo = FALSE}
+query = "
+select	
+    sd.date,
+    CAST(sd.\"princPasSaldosMEDepGobierno\" / sd.\"tipoCambio\" AS NUMERIC(10,2)) AS deposUSD,
+    CAST((sd.\"princPasSaldosMEDepGobierno\" / sd.\"tipoCambio\") -
+        LAG(sd.\"princPasSaldosMEDepGobierno\" / sd.\"tipoCambio\") OVER (ORDER BY bb.date) AS NUMERIC(10,2)) AS varDeposUSD,
+    CAST(sd.\"princPasSaldosPESOSDepGobierno\" AS NUMERIC(10,2)) AS deposPesos,
+    CAST(sd.\"princPasSaldosPESOSDepGobierno\" - LAG(sd.\"princPasSaldosPESOSDepGobierno\") OVER (ORDER BY sd.date) AS NUMERIC(10,2)) AS varDeposPesos,
+    CAST(bb.\"vdFeOtrasOpTNResto\" AS NUMERIC(10,2)) AS OtrasOpTesoroResto,
+    /*CAST(sd.\"tipoCambio\" AS NUMERIC(10,2)) AS TC,*/
+    cast(bb.\"vdFeComTN\" / sd.\"tipoCambio\" AS NUMERIC(10,2)) as comprasUSDTesoro,
+    cast(sd.\"reservasIntSaldosUSDTotal\" as numeric(10,2)) as reservasBrutas
+FROM \"serieDiaria\" sd
+LEFT JOIN \"bmBCRA\" bb ON sd.\"date\" = bb.\"date\"
+    AND bb.\"tipoSerie\" = 'D'
+    AND bb.date > '2024-05-30'
+WHERE sd.date > '2024-05-30' and sd.\"princPasSaldosMEDepGobierno\" is not null
+
+"
+depos = dbExecuteQuery(query = query, 
+                       server = server, port = port) %>% as_tibble()
+
+depos = depos %>% select(-reservasbrutas, -otrasoptesororesto, -comprasusdtesoro)
+depos_tabla <- depos %>%
+  rename(
+    "FECHA" = date,
+    "DEPOS USD" = deposusd,
+    "DELTA DEPOS USD" = vardeposusd,
+    "DEPOS $" = depospesos,
+    "DELTA DEPOS $" = vardepospesos
+  ) 
+
+# Crear flextable con formato numérico personalizado
+depos_tabla <- flextable(depos_tabla %>% tail(n=15)) %>%
+  colformat_num(
+    j = c("DEPOS USD", "DELTA DEPOS USD", "DEPOS $", "DELTA DEPOS $"),
+    digits = 2,
+    big.mark = ".",
+    decimal.mark = ","
+  ) %>%
+  autofit()
+
+depos_tabla
+
+```
+
+
+**CHEQUEO TC IMPLICITO MOVIMIENTOS TESORO**
+```{r chequeo, echo = FALSE}
+
+depos %>% 
+  left_join(tc) %>% 
+  mutate(TCImplicito = abs(vardepospesos/vardeposusd), TCA3500 = vardeposusd * A3500) %>% 
+  select(date, deposusd, vardeposusd, depospesos, vardepospesos, A3500, TCImplicito, TCA3500) %>% 
+  tail(n=19) %>% 
+  mutate(
+  across(c(A3500, TCImplicito, TCA3500),
+         ~ trunc(.x * 100) / 100)  # truncar a 2 decimales
+) %>% 
+  rename(
+    "FECHA" = date,
+    "DEPOS USD" = deposusd,
+    "DELTA DEPOS USD" = vardeposusd,
+    "DEPOS $" = depospesos,
+    "DELTA DEPOS $" = vardepospesos,
+    "TC A3500" = A3500,
+    "TC IMPLICITO" = TCImplicito,
+    "TC A3500 x DELTA DEPOS USD" = TCA3500
+  ) %>% 
+  flextable() %>%
+  colformat_num(
+  j = c("DEPOS USD", "DELTA DEPOS USD", "DEPOS $", "DELTA DEPOS $", 
+        "TC A3500", "TC IMPLICITO", "TC A3500 x DELTA DEPOS USD"),
+  digits = 2,
+  big.mark = ".",
+  decimal.mark = ",",
+  formatter = function(x) trunc(x * 100) / 100
+) %>% 
+  autofit()
+  
+```
+<br>
+
+<br>
+
+<!--**Variación CER-LECAP** -->
+
+```{=html}
+<style>
+.columns .column table {
+  width: 100% !important;
+  font-size: 12px;
+}
+.columns .column table td,
+.columns .column table th {
+  white-space: nowrap !important;
+  padding: 4px 8px !important;
+}
+</style>
+```
+::: {.columns style="display: flex; gap: 20px; flex-wrap: nowrap;"}
+::: {.column style="width: 50%; max-width: 50%; box-sizing: border-box;"}
+```{r, echo = FALSE, warning=FALSE, eval=FALSE}
+# df_cer = bonosCER_dinamica %>% select(date, ticker, price, vto = maturity)
+# df_cer$vto = as.Date(df_cer$vto)
+# df_cer$group = "CER"
+# 
+# df_lecap = curva_lecaps_dinamica %>% select(date, ticker, price, vto=date_vto)
+# df_lecap$group = "LECAP"
+# 
+# df_juntos = rbind(df_cer, df_lecap) %>% arrange(date)
+# vtos=df_juntos %>% select(ticker, vto) %>% distinct(ticker, .keep_all = T)
+# tabla1 <- finance::evol_fechas(df_juntos, fecha1 = "2025-07-15", fecha2 = Sys.Date(), campo = "price", campo_fecha = "date") %>% 
+#   select(-vto) %>%
+#   mutate(date = format(as.Date(date), "%d/%m")) %>%
+#   flextable() %>% 
+#   #width(j = 1, width = 7.2, unit = "in") %>%  # Ancho para fecha
+#   # width(j = 2, width = 0.8, unit = "in") %>%  # Ancho para ticker
+#   # width(j = 3, width = 1.0, unit = "in") %>%  # Ancho para precio
+#   # width(j = 4, width = 0.7, unit = "in") %>%  # Ancho para grupo
+#   # width(j = 5, width = 1.0, unit = "in") %>%  # Ancho para valor previo
+#   # width(j = 6, width = .80, unit = "in") %>%  # Ancho para variación
+#   #width(j = 1, width = 2.5, unit = "in") %>% # Ancho fijo para la columna "Fecha"
+#   #compose(j = 1, value = as_paragraph(as_chunk(date))) %>% # Sin props adicionales
+#   fix_border_issues() %>%
+#   set_caption("Variación CER-LECAP 15/07/2025 y hoy") %>% 
+#   set_header_labels(
+#     date = "Fecha", ticker = "Ticker", price = "Precio Hoy", group = "Grupo",
+#     .valor_fecha1 = "Valor Previo", variacion_pct = "Variación"
+#   ) 
+# 
+tabla1
+```
+:::
+
+::: {.column style="width: 50%; max-width: 50%; box-sizing: border-box;"}
+```{r, echo = FALSE, warning=FALSE, eval = FALSE}
+# tabla2 <- finance::evol_fechas(df_juntos, fecha1 = "2025-06-30", fecha2 = Sys.Date(), campo = "price", campo_fecha = "date") %>% 
+#   select(-vto) %>%
+#   mutate(date = format(as.Date(date), "%d/%m")) %>%
+#   flextable() %>% 
+#   # width(j = 1, width = 7.2, unit = "in") %>%  # Ancho para fecha
+#   # width(j = 2, width = 0.8, unit = "in") %>%  # Ancho para ticker
+#   # width(j = 3, width = 1.0, unit = "in") %>%  # Ancho para precio
+#   # width(j = 4, width = 0.7, unit = "in") %>%  # Ancho para grupo
+#   # width(j = 5, width = 1.0, unit = "in") %>%  # Ancho para valor previo
+#   # width(j = 6, width = .80, unit = "in") %>%  # Ancho para variación
+#   # #width(j = 1, width = 3.2, unit = "in") %>% # Ancho fijo para la columna "Fecha"
+#   # compose(j = 1, value = as_paragraph(as_chunk(date))) %>% # Sin props adicionales
+#   fix_border_issues() %>%
+#   set_caption("Variación CER-LECAP 30/06/2025 y hoy") %>% 
+#   set_header_labels(
+#     date = "Fecha", ticker = "Ticker", price = "Precio Hoy", group = "Grupo",
+#     .valor_fecha1 = "Valor Previo", variacion_pct = "Variación"
+#   ) 
+# 
+# tabla2
+```
+:::
+:::
+
+**DEUDA** **SOBERANA**
+
+```{r deuda_sob, echo = FALSE, warning=FALSE}
+knitr::opts_chunk$set(comment = "")
+preciosPond %>% 
+  mutate(varD = (precio / lag(precio) - 1) * 100, 
+         varS = (precio / lag(precio, n=5) - 1) * 100
+         ) %>% 
+  relocate(date, precio, varD, varS, ytd) %>% 
+  tail(n=10)
+
+# variaciones de los bonos en BYMA
+preciosDeuda[, c(1:3)] %>% 
+  pivot_wider(names_from = ticker, values_from = price) %>% 
+  mutate(across(-date, ~ (. / lag(.) - 1) * 100, .names = "varD_{.col}")) %>% 
+  rowwise() %>% 
+  mutate(
+    mean_varD = mean(c_across(starts_with("varD")), na.rm = TRUE),
+    max_varD = if_any(starts_with("varD"), ~ !is.na(.)) %>% 
+      if_else(., max(c_across(starts_with("varD")), na.rm = TRUE), NA_real_),
+    min_varD = if_any(starts_with("varD"), ~ !is.na(.)) %>% 
+      if_else(., min(c_across(starts_with("varD")), na.rm = TRUE), NA_real_)
+  ) %>% 
+  ungroup() %>% 
+  tail()
+```
+
+<br>
+
+**RIESGO** **PAIS**
+
+```{r riesgo_pais, echo = FALSE}
+rp %>% tail() %>% flextable() %>% width(j="date", width = 1.) %>%   align(align="center", part = "all") 
+
+```
+
+<br>
+
+**MERVAL**
+
+```{r merval, echo = FALSE}
+merval %>% tail(n=10)%>% flextable() %>% width(j="date", width = 1.) %>%   align(align="center", part = "all") %>%  colformat_double(j = c(3:4, 6:7,10),digits = 2, suffix = "%")
+```
+
+<br>
+
+**ROFEX**
+
+```{r rofex, echo = FALSE}
+vol %>% 
+  mutate(
+    across(c(OI, vol), ~ . - lag(.,1), .names = "diff_{.col}")
+  ) %>% 
+  tail()%>% flextable() %>% width(j="date", width = 1.) %>%   align(align="center", part = "all")
+
+```
