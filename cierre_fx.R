@@ -36,10 +36,10 @@ ccl = functions::dbGetTable(table = "ccl", server = server, port = port) %>% dis
 query = "
 SELECT DISTINCT ON (\"date\")
   \"date\",
-  \"Cotizacion\" AS last_mlc
+  \"cotizacion\" AS last_mlc
 FROM forex
-WHERE \"Instrumento\" LIKE 'UST / ART%'
-  AND \"Rueda\" = 'CAM1'
+WHERE \"instrumento\" LIKE 'UST / ART%'
+  AND \"rueda\" = 'CAM1'
   AND settle IN ('0','1','2','3','4','5')
 ORDER BY
   \"date\",

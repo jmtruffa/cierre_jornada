@@ -1,12 +1,12 @@
 vol_mulc_todos_plazos = "
 SELECT 
   \"forex\".date, 
-  SUM(CASE WHEN \"currencyOut\" = 'UST ' THEN \"Monto Negociado.*\" ELSE 0 END)::NUMERIC AS volumen,
-  SUM(CASE WHEN \"currencyOut\" = 'USMEP ' THEN \"Monto Negociado.*\" ELSE 0 END)::NUMERIC AS volumen_usmep
+  SUM(CASE WHEN \"currency_out\" = 'UST' THEN \"monto\" ELSE 0 END)::NUMERIC AS volumen,
+  SUM(CASE WHEN \"currency_out\" = 'USMEP' THEN \"monto\" ELSE 0 END)::NUMERIC AS volumen_usmep
 FROM 
   \"forex\"
 WHERE 
-  \"currencyOut\" = 'UST ' OR \"currencyOut\" = 'USMEP '
+  \"currency_out\" = 'UST' OR \"currency_out\" = 'USMEP'
 GROUP BY 
   \"forex\".date
 ORDER BY 
