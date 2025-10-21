@@ -57,6 +57,7 @@ comi = 0.000
 fails = tibble(
   ticker = character()
 )
+log_file = file.path(path, "cierre.log")
 
 
 #######################################################################
