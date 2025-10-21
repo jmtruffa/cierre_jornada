@@ -46,7 +46,7 @@ prev_friday_date = bizdays::adjust.previous(current_friday - days(7), cal)
 from = as.Date(ifelse(viernes, prev_friday_date, bizdays::adjust.previous(Sys.Date() - 1, cal = cal))) 
 to = Sys.Date()
 from_dinamica = "2025-01-01"
-from_fx = "2016-01-01"
+from_fx = "2023-01-01"
 start_date_inflabe = Sys.Date()  
 end_date_inflabe = Sys.Date() 
 start_date_inflabe_graph = "2025-01-01"
