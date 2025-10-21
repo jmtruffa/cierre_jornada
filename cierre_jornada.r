@@ -32,7 +32,7 @@ if (length(args) == 0) {
 } else {
   update <- FALSE
 }
-setwd("~/dev/r/outlier/cierre_jornada")
+setwd("/home/jmt/dev/r/outlier/cierre_jornada")
 functions::setup(server = "GC")
 outlier::theme_outlier()
 path = "/home/jmt/cierre-jornada"
