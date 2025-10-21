@@ -19,7 +19,7 @@ if (!lecap_prices$ok && is.null(lecap_prices$data)) {
   functions::log_msg(
     paste("Abortamos proceso con Lecaps:", lecap_prices$msg),
     "ERROR",
-    log_file = "./cierre.log"
+    log_file = log_file
   )
   # objetos vacíos para seguir el pipeline
   lecaps        <- tibble::tibble()
@@ -106,7 +106,7 @@ if (!lecap_prices$ok && is.null(lecap_prices$data)) {
     functions::log_msg(
       paste("Abortamos proceso con Bonos Pesos:", bonos_pesos_prices$msg),
       "ERROR",
-      log_file = "./cierre.log"
+      log_file = log_file
     )
     # objetos vacíos y NO seguimos con yields de BOTES
     temp_bonos_pesos <- tibble::tibble()
@@ -147,7 +147,7 @@ if (!lecap_prices$ok && is.null(lecap_prices$data)) {
       functions::log_msg(
         paste("Abortamos proceso con Bonos Pesos (yields):", res_y$msg),
         "ERROR",
-        log_file = "./cierre.log"
+        log_file = log_file
       )
       # no cortamos el flujo; simplemente no agregamos BOTES a la curva
     } else {
@@ -156,10 +156,10 @@ if (!lecap_prices$ok && is.null(lecap_prices$data)) {
         functions::log_msg(
           sprintf("Bonos Pesos con issues (filas con NA en rendimiento): %d", nrow(res_y$issues)),
           "WARN",
-          log_file = "./cierre.log"
+          log_file = log_file
         )
       } else {
-        functions::log_msg("Bonos Pesos OK (rendimientos sin NA).", "INFO", log_file = "./cierre.log")
+        functions::log_msg("Bonos Pesos OK (rendimientos sin NA).", "INFO", log_file = log_file)
       }
       
       apr_bonos_pesos <- res_y$data
