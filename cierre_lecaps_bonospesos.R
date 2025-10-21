@@ -33,11 +33,13 @@ if (!lecap_prices$ok && is.null(lecap_prices$data)) {
   lecaps <- lecap_prices$data
   
   # actualizamos la base SOLO con lo nuevo
-  functions::dbWriteDF(
-    table = "historico_lecaps",
-    df    = dplyr::filter(lecaps, date > max_fecha_lecap),
-    server = server, port = port, append = TRUE
-  )
+  if (update) {
+    functions::dbWriteDF(
+      table = "historico_lecaps",
+      df    = dplyr::filter(lecaps, date > max_fecha_lecap),
+      server = server, port = port, append = TRUE
+    )
+  }
   
   # ahora re-leemos desde la tabla (para cubrir gaps si la API ya no trae vencidos)
   lecaps <- functions::dbExecuteQuery(
@@ -181,7 +183,7 @@ if (!lecap_prices$ok && is.null(lecap_prices$data)) {
 
     }
     }
-}
+  }
 
 ############################################################
 # Graficamos
