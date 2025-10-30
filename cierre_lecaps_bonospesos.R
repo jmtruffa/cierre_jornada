@@ -211,6 +211,7 @@ if (nrow(fails) > 0) {
   functions::log_msg(sprintf("Fails acumulados: %d", nrow(fails)), "WARN", log_file = log_file)
 }
 
+
 ############################################################
 # Graficamos
 g_lecap_tem = curva_lecaps %>% 
