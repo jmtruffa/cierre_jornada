@@ -71,7 +71,29 @@ from = "2016-01-01"
 to = Sys.Date()
 dlr = methodsPPI::getPPIDLR(from = from, to = to, settle = settle)
 ccl = dbGetTable(table = "ccl", server = server, port = port) 
-tc = dbGetTable("A3500", server = server, port = port)
+query = "
+SELECT DISTINCT ON (\"date\")
+  \"date\",
+  \"cotizacion\" AS last_mlc
+FROM forex
+WHERE \"instrumento\" LIKE 'UST / ART%'
+  AND \"rueda\" = 'CAM1'
+  AND settle IN ('0','1','2','3','4','5')
+ORDER BY
+  \"date\",
+  CASE settle
+    WHEN '0' THEN 0
+    WHEN '1' THEN 1
+    WHEN '2' THEN 2
+    WHEN '3' THEN 3
+    WHEN '4' THEN 4
+    WHEN '5' THEN 5
+    ELSE 99
+  END;
+"
+last = functions::dbExecuteQuery(query = query, server = server, port = port) #%>% add_row(date = Sys.Date(), last_mlc = 1240)
+tc = functions::dbGetTable("A3500", server = server, port = port) %>% left_join(last)
+
 fx=left_join(dlr, ccl, join_by(date == date)) %>%
   mutate(
     across(-c(date, Canje), ~ (. / lag(.) - 1) * 100, .names = "varD_{.col}"),
@@ -81,7 +103,7 @@ fx=left_join(dlr, ccl, join_by(date == date)) %>%
   select(date, mepAL, ccl3) %>% 
   left_join(tc) %>% 
   mutate(
-    canje = ccl3 / mepAL - 1
+    Canje = ccl3 / mepAL - 1
   )
 
 serie = cauciones_filtrado_usd %>% 
@@ -111,4 +133,4 @@ g_caucion_usd_canje = serie %>%
        caption = paste0(.pie, " en base a BYMA"),
        x = "",
        y = "TNA") 
-grabaGrafo(variable = g_caucion_usd_canje)
+grabaGrafo(variable = g_caucion_usd_canje, path = path)

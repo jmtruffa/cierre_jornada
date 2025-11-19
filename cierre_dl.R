@@ -148,10 +148,11 @@ dl_dinamica <- dbExecuteQuery(
 # Ajuste por tipo de cambio para la dinámica
 dl_dinamica <- dl_dinamica %>%
   dplyr::left_join(
-    tc %>% dplyr::select(date, tc = last_mlc),
+    tc %>% dplyr::select(date, tc = A3500), # para el dinámico uso mejor el "promedio" del día
     by = "date"
   ) %>%
-  dplyr::mutate(price_adj = price / tc)
+  dplyr::mutate(price_adj = price / tc) %>% 
+  filter(!is.na(price_adj))  # acá vuelo los días que no hay mulc pero sí hay cotización de bonos e.g.: 6-nov
 
 temp_dl_dinamica <- dl_dinamica
 
@@ -237,7 +238,7 @@ g_linkers = dl %>%
 
 grabaGrafo(variable = g_linkers, path = path)
 
-g_linkers = dl_dinamica %>%
+g_linkers_dinamica = dl_dinamica %>%
   dplyr::select(ticker, date, yield) %>%
   tidyr::drop_na() %>%
   ggplot(aes(x = date, y = yield, color = ticker)) +
@@ -265,4 +266,4 @@ g_linkers = dl_dinamica %>%
   theme(legend.title = element_blank()) +
   guides(color = guide_legend(ncol = 8))
 
-grabaGrafo(variable = g_linkers, path = path)
+grabaGrafo(variable = g_linkers_dinamica, path = path)

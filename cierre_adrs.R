@@ -116,7 +116,7 @@ g_tablaADRs <- flextable(datos_tabla_ADR,
   add_header_lines("Tabla de Selección de ADRs Argentinos") %>% 
   # Align footer to right
   align(align="right", part = "footer") %>% 
-  hline(i = 14, border = fp_border(color = "black", style = "solid", width = 1), part = "body")  
+  hline(i = 14, border = officer::fp_border(color = "black", style = "solid", width = 1), part = "body")  
   #bg(part = "all", bg = "white")
 
 

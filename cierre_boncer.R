@@ -159,7 +159,7 @@ g_boncer = boncer %>%
     
     
     labs(title = "CURVA BONCER",
-         subtitle = paste0('Último dato: ', max(bonosCER$date)),
+         subtitle = paste0('Último dato: ', max(boncer$date)),
          y = 'TIR',
          x = 'Duration Modificada',
          caption = paste0(.pie, " en base a precios de mercado."))
@@ -184,4 +184,4 @@ g_boncer_dinamica = boncer_dinamica %>%
     geom_hline(yintercept = 0, color = 'black') +
     theme(legend.title =  element_blank()) + guides(color = guide_legend(ncol = 8))
   
-  grabaGrafo(variable = g_boncer_dinamica, path = path)  
+grabaGrafo(variable = g_boncer_dinamica, path = path)  

@@ -38,10 +38,10 @@ globales = curvaAR(from = "2023-12-02")
 curva_sob = globales %>% group_by(ticker) %>% arrange(date) %>% 
   do(tail(.,n=1)) %>% 
   mutate(Ley = ifelse(str_detect(ticker, "GD"), "Global", "Bonar")) %>% 
-  ggplot(aes(x=mduration, y=yield, color = Ley, label = ticker)) +
+  ggplot(aes(x=mduration, y=yield, color = Ley)) +
   theme_usado() +
   geom_point() +
-  geom_text_repel(show.legend = F) +
+  geom_text_repel(aes(label = ticker), show.legend = F) +
   geom_smooth(method = "lm", formula = y ~ poly(x, 2), se = FALSE, show.legend = F) +
   scale_y_continuous(breaks = breaks_extended(10), labels = scales::percent, ) +
   scale_color_manual(name = NULL, labels = c("Bonar", "Global"), values = .paleta) +
@@ -116,8 +116,7 @@ hist_YTM_sob = globales %>%
     panel.grid.major.x = element_blank() ,
     #panel.grid.major.y = element_blank(),
     title = element_text(size=12, face='bold')
-  ) +
-  geom_vline(xintercept = as.Date("2024-08-01"))
+  ) 
 grabaGrafo(variable = hist_YTM_sob, name = "g_hist_YTM_sob", path = path)  
 
 ###############################
@@ -155,14 +154,14 @@ g_bopres = bopres %>%
   #filter(str_detect(ticker, "D$")) %>% 
   filter(date == max(date)) %>% 
   #filter(date == Sys.Date()  | date == Sys.Date() - 1) %>% 
-  ggplot(aes(x=mduration, y=yield, label = ticker, group = date, color = as.factor(date))) +
+  ggplot(aes(x=mduration, y=yield, group = date, color = as.factor(date))) +
   theme_usado() +
   
   geom_point() +
   
   geom_smooth(method = "lm", se=F, show.legend = FALSE, linewidth = 1) +
   
-  geom_text_repel(show.legend = F) +
+  geom_text_repel(show.legend = F, aes(label = ticker)) +
   
   scale_color_manual(name = NULL, values = .paleta) + 
   scale_y_continuous(breaks = breaks_extended(10), labels = scales::percent) +
@@ -228,11 +227,11 @@ df = rbind(glob, bopres %>% select(ticker, date, yield, mduration,tipo))
 g_glob_bopre = df %>% 
   filter(date == max(date)) %>% 
   filter(ticker != "BPJ5C" & ticker != "BPJ5D") %>% 
-  ggplot(aes(x=mduration, y=yield, label=ticker, color = tipo)) +
+  ggplot(aes(x=mduration, y=yield, color = tipo)) +
   theme_usado() +
   geom_point() +
   geom_smooth(se=F, method = "lm", formula = "y ~ log(x)", show.legend = F) + 
-  geom_text_repel(show.legend = F) +
+  geom_text_repel(show.legend = F, aes(label=ticker)) +
   scale_y_continuous(breaks = breaks_extended(10), labels = scales::percent) +
   scale_color_manual(values = .paleta) +
   scale_x_continuous(breaks = seq(0, max(df$mduration) + 1, by = 0.5)) +

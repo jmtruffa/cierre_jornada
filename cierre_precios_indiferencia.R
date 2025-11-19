@@ -9,7 +9,7 @@ df_tc <-
   filter(date == max(date)) %>%                       # último día
   left_join(
     fx %>% distinct(date, .keep_all = TRUE) %>% 
-      select(-canje),                                 # (renombrá acá si querés)
+      select(-Canje),                                 # (renombrá acá si querés)
     by = "date"
   ) %>% 
   filter(!is.na(vf)) %>% 

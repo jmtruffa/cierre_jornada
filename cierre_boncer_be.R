@@ -1,5 +1,5 @@
 # Leer un archivo JSON local
-data <- fromJSON("~/go/src/github.com/jmtruffa/yields/bonds.json", simplifyVector = FALSE)
+data <- fromJSON("/home/jmt/procesos/yields/bonds.json", simplifyVector = FALSE)
 
 instrumentos <- lapply(data, function(x) {
   data.frame(
