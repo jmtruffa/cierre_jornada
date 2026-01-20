@@ -20,19 +20,54 @@ library(patchwork)
 library(gghighlight)
 library(rofex)
 library(officer)
+library(R.utils)
 
 # vamos a llamar cada script con esta función para evitar que si una falle, se caiga el resto
-safe_source <- function(file) {
+safe_source <- function(file, timeout = 600) {
   tryCatch(
     {
-      message("Ejecutando: ", basename(file))
-      source(file)
+      msg_ini <- sprintf("[%s] Ejecutando: %s", format(Sys.time(), "%F %T"), basename(file))
+      message(msg_ini)
+      cat(msg_ini, "\n", file = log_file, append = TRUE)
+      
+      withTimeout(
+        expr     = source(file),
+        timeout  = timeout,
+        onTimeout = "error"
+      )
+      
+      msg_fin <- sprintf("[%s] OK: %s", format(Sys.time(), "%F %T"), basename(file))
+      cat(msg_fin, "\n", file = log_file, append = TRUE)
     },
     error = function(e) {
-      msg <- sprintf("ERROR en %s: %s", basename(file), conditionMessage(e))
+      msg <- sprintf("[%s] ERROR en %s: %s",
+                     format(Sys.time(), "%F %T"),
+                     basename(file),
+                     conditionMessage(e))
       message(msg)
-      cat(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), msg, "\n",
-          file = log_file, append = TRUE)
+      cat(msg, "\n", file = log_file, append = TRUE)
+    }
+  )
+}
+
+safe_render <- function(...) {
+  tryCatch(
+    {
+      msg_ini <- sprintf("[%s] Renderizando cierre_jornada.qmd...", format(Sys.time(), "%F %T"))
+      message(msg_ini)
+      cat(msg_ini, "\n", file = log_file, append = TRUE)
+      
+      rmarkdown::render(...)
+      
+      msg_fin <- sprintf("[%s] Render OK", format(Sys.time(), "%F %T"))
+      cat(msg_fin, "\n", file = log_file, append = TRUE)
+    },
+    error = function(e) {
+      msg <- sprintf("[%s] ERROR en render cierre_jornada.qmd: %s",
+                     format(Sys.time(), "%F %T"),
+                     conditionMessage(e))
+      message(msg)
+      cat(msg, "\n", file = log_file, append = TRUE)
     }
   )
 }
@@ -52,6 +87,15 @@ outlier::theme_outlier()
 path = "/home/jmt/cierre-jornada"
 path_source = "/home/jmt/dev/r/outlier/cierre_jornada"
 update = T
+
+functions::log_msg(
+  paste("========================="),
+  log_file = file.path(path, "cierre.log")
+)
+functions::log_msg(
+  paste("Arranca proceso generador de cierre a las: ", Sys.time()),  
+  log_file = file.path(path, "cierre.log")
+)
 ##############################
 # Backup y limpieza del directorio
 backup_path <- file.path(path, "backup")
@@ -68,7 +112,12 @@ today <- format(Sys.Date(), "%Y%m%d")
 backup_today <- file.path(backup_path, today)
 if (!dir.exists(backup_today)) dir.create(backup_today)
 
-file.copy(from = files, to = backup_today, overwrite = TRUE)
+functions::log_msg(
+  paste("Moviendo archivos previos a carpeta backup"),  
+  log_file = file.path(path, "cierre.log")
+)
+invisible(file.copy(from = files, to = backup_today, overwrite = TRUE))
+
 
 # Limpieza de backups viejos
 backups <- list.dirs(backup_path, recursive = FALSE, full.names = TRUE)
@@ -76,7 +125,11 @@ old_backups <- backups[as.Date(basename(backups), "%Y%m%d") < Sys.Date() - 7]
 unlink(old_backups, recursive = TRUE)
 
 # Eliminar los archivos originales
-file.remove(files)
+functions::log_msg(
+  paste("Eliminando archivos anteriores"),  
+  log_file = file.path(path, "cierre.log")
+)
+invisible(file.remove(files))
 #############################
 
 
@@ -180,11 +233,13 @@ safe_source(file.path(path_source, 'cierre_rofex_curva.R'))
 # Varios
 safe_source(file.path(path_source, 'cierre_precios_indiferencia.R'))
 
-rmarkdown::render(
-  input = file.path(path_source, "cierre_jornada.qmd"),
+# Render del HTML
+safe_render(
+  input       = file.path(path_source, "cierre_jornada.qmd"),
   output_file = file.path(path, "cierre_jornada.html"),
-  envir = .GlobalEnv
+  envir       = .GlobalEnv
 )
+
 
 
 #######################################################################
@@ -194,9 +249,24 @@ rmarkdown::render(
 # que están en la carpeta /cierre-jornada
 gsutil_comando <- paste0(
   "/usr/bin/gsutil rsync -d -r ",
-  path, "/", 
-  " gs://reportes-cierre-jornada")
+  path, "/",
+  " gs://reportes-cierre-jornada"
+)
 
-# 2. Ejecutar el comando de shell
-# La función system() ejecuta comandos de shell.
-system(gsutil_comando)
+on.exit({
+  if (length(list.files(path, recursive = TRUE)) > 0L) {
+    msg <- sprintf("[%s] Lanzando gsutil rsync...", format(Sys.time(), "%F %T"))
+    cat(msg, "\n", file = log_file, append = TRUE)
+    system(gsutil_comando)
+  }
+}, add = TRUE)
+
+
+functions::log_msg(
+  paste("Finaliza proceso generador de cierre a las: ", Sys.time()),  
+  log_file = file.path(path, "cierre.log")
+)
+functions::log_msg(
+  paste("========================="),
+  log_file = file.path(path, "cierre.log")
+)
