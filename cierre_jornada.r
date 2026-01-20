@@ -199,7 +199,7 @@ safe_source(file.path(path_source, 'cierre_lecaps_carry.R'))
 
 #######################################################################
 # inflación Break Even
-safe_source(file.path(path_source, 'cierrre_inflacionBE.R'))
+safe_source(file.path(path_source, 'cierre_inflacionBE.R'))
 
 #######################################################################
 # Internacionales
@@ -247,17 +247,32 @@ safe_render(
 # La ruta gsutil suele ser /usr/bin/gsutil o está en el PATH
 # Esto actualizará el bucket reportes-cierre-jornada con los archivos generados y 
 # que están en la carpeta /cierre-jornada
-gsutil_comando <- paste0(
-  "/usr/bin/gsutil rsync -d -r ",
-  path, "/",
-  " gs://reportes-cierre-jornada"
+gsutil_args <- c(
+  "rsync",
+  "-d",
+  "-r",
+  paste0(path, "/"),
+  "gs://reportes-cierre-jornada"
 )
 
 on.exit({
   if (length(list.files(path, recursive = TRUE)) > 0L) {
     msg <- sprintf("[%s] Lanzando gsutil rsync...", format(Sys.time(), "%F %T"))
     cat(msg, "\n", file = log_file, append = TRUE)
-    system(gsutil_comando)
+    gsutil_out <- tryCatch(
+      system2("/usr/bin/gsutil", gsutil_args, stdout = TRUE, stderr = TRUE),
+      error = function(e) paste("ERROR al ejecutar gsutil:", conditionMessage(e))
+    )
+    gsutil_status <- attr(gsutil_out, "status")
+    if (is.null(gsutil_status)) {
+      gsutil_status <- 0L
+    }
+    cat(sprintf("[%s] gsutil exit code: %s", format(Sys.time(), "%F %T"), gsutil_status),
+        "\n", file = log_file, append = TRUE)
+    if (length(gsutil_out) > 0L) {
+      cat(gsutil_out, sep = "\n", file = log_file, append = TRUE)
+      cat("\n", file = log_file, append = TRUE)
+    }
   }
 }, add = TRUE)
 
