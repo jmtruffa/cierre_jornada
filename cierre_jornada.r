@@ -98,7 +98,7 @@ functions::log_msg(
 )
 ##############################
 # Backup y limpieza del directorio
-backup_path <- file.path(path, "backup")
+backup_path <- "/home/jmt/backup-cierre-jornada"
 # Crear carpeta backup si no existe
 if (!dir.exists(backup_path)) dir.create(backup_path)
 
