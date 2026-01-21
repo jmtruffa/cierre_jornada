@@ -40,7 +40,9 @@ for (i in 1:length(ticker)) {
       fail = fail %>% add_row(ticker = ticker[i])
     } else {
       history = fromJSON(rawToChar(rPriceHistory$body))
-      history$date <- as_datetime(history$date, tz = "America/Buenos_Aires")
+      history$date <- suppressMessages(
+        as_datetime(history$date, tz = "America/Buenos_Aires")
+      )
       result = rbind(result, as_tibble(cbind(ticker = rep(ticker[i], length(history$date)), history)))
     }
   }
@@ -135,7 +137,9 @@ for (i in 1:length(ticker)) {
       fail = fail %>% add_row(ticker = ticker[i])
     } else {
       history = fromJSON(rawToChar(rPriceHistory$body))
-      history$date <- as_datetime(history$date, tz = "America/Buenos_Aires")
+      history$date <- suppressMessages(
+        as_datetime(history$date, tz = "America/Buenos_Aires")
+      )
       result = rbind(result, as_tibble(cbind(ticker = rep(ticker[i], length(history$date)), history)))
     }
   }
@@ -239,7 +243,9 @@ for (i in 1:length(ticker)) {
       fail = fail %>% add_row(ticker = ticker[i])
     } else {
       history = fromJSON(rawToChar(rPriceHistory$body))
-      history$date <- as_datetime(history$date, tz = "America/Buenos_Aires")
+      history$date <- suppressMessages(
+        as_datetime(history$date, tz = "America/Buenos_Aires")
+      )
       result = rbind(result, as_tibble(cbind(ticker = rep(ticker[i], length(history$date)), history)))
     }
   }
@@ -336,7 +342,9 @@ for (i in 1:length(ticker)) {
       fail = fail %>% add_row(ticker = ticker[i])
     } else {
       history = fromJSON(rawToChar(rPriceHistory$body))
-      history$date <- as_datetime(history$date, tz = "America/Buenos_Aires")
+      history$date <- suppressMessages(
+        as_datetime(history$date, tz = "America/Buenos_Aires")
+      )
       result = rbind(result, as_tibble(cbind(ticker = rep(ticker[i], length(history$date)), history)))
     }
   }
