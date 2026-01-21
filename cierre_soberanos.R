@@ -33,7 +33,19 @@ curvaAR = function(from = "2020-09-15", to = Sys.Date(), comi = 0.0) {
                                    endpoint = 'yield'))
 }
 
-globales = curvaAR(from = "2023-12-02")
+log_step <- function(msg) {
+  functions::log_msg(msg, "INFO", log_file = log_file)
+}
+
+log_timed <- function(label, expr) {
+  log_step(paste0("INICIO: ", label))
+  elapsed <- system.time(expr)[["elapsed"]]
+  log_step(paste0("FIN: ", label, " | elapsed=", round(elapsed, 2), "s"))
+}
+
+log_timed("curvaAR (globales)", {
+  globales <<- curvaAR(from = "2023-12-02")
+})
 
 curva_sob = globales %>% group_by(ticker) %>% arrange(date) %>% 
   do(tail(.,n=1)) %>% 
@@ -52,7 +64,9 @@ curva_sob = globales %>% group_by(ticker) %>% arrange(date) %>%
        caption = paste0(.pie, ' en base a datos BYMA')
   )
 
-grabaGrafo(variable = curva_sob, name = "g_curva_sob", path = path)
+log_timed("g_curva_sob", {
+  grabaGrafo(variable = curva_sob, name = "g_curva_sob", path = path)
+})
 
 ##################################
 ## spread 35 - 30 por legislación
@@ -78,7 +92,9 @@ spread30_35 = globales %>%
        y = 'Diferencia TIR',
        caption = paste0(.pie, ' en base a datos de BYMA')) +
   geom_hline(yintercept = 0)
-grabaGrafo(variable = spread30_35, name = "g_spread30_35", path = path)
+log_timed("g_spread30_35", {
+  grabaGrafo(variable = spread30_35, name = "g_spread30_35", path = path)
+})
 
 ################################
 ## regresiones por legislación
@@ -96,7 +112,9 @@ reg_legis = globales %>%
        x = 'Fecha',
        y = 'TIR',
        caption = paste0(.pie, ' en base a datos de BYMA'))
-grabaGrafo(variable = reg_legis, name = "g_reg_legis", path = path)
+log_timed("g_reg_legis", {
+  grabaGrafo(variable = reg_legis, name = "g_reg_legis", path = path)
+})
 
 
 hist_YTM_sob = globales %>% 
@@ -117,7 +135,9 @@ hist_YTM_sob = globales %>%
     #panel.grid.major.y = element_blank(),
     title = element_text(size=12, face='bold')
   ) 
-grabaGrafo(variable = hist_YTM_sob, name = "g_hist_YTM_sob", path = path)  
+log_timed("g_hist_YTM_sob", {
+  grabaGrafo(variable = hist_YTM_sob, name = "g_hist_YTM_sob", path = path)  
+})
 
 ###############################
 ## bopreales
@@ -127,14 +147,16 @@ from = as.Date(ifelse(viernes, prev_friday_date, adjust.previous(Sys.Date() - 1,
 to  = Sys.Date()
 methodsPPI::getPPILogin() 
 
-bono = getPPIPriceHistoryMultiple3(
-  token$token,
-  ticker = tickers,
-  type = rep("BONOS", length(tickers)),
-  from = from,
-  to = to,
-  settlement = "A-24HS"
-)
+log_timed("getPPIPriceHistoryMultiple3 (bopreales)", {
+  bono <<- getPPIPriceHistoryMultiple3(
+    token$token,
+    ticker = tickers,
+    type = rep("BONOS", length(tickers)),
+    from = from,
+    to = to,
+    settlement = "A-24HS"
+  )
+})
 
 max_fecha_bopreales = dbExecuteQuery(query="select max(date) from historico_bopreales", server = server, port = port) %>% pull()
 dbWriteDF(table = "historico_bopreales", df = bono[[1]] %>% filter(date > max_fecha_bopreales), server = server, port = port, append = T) 
@@ -173,7 +195,9 @@ g_bopres = bopres %>%
        x = "Duration Modificada",
        caption = paste0(.pie, ' en base a datos de mercado (BYMA)'))
 
-grabaGrafo(variable = g_bopres, name = "g_bopreales", path = path)
+log_timed("g_bopreales", {
+  grabaGrafo(variable = g_bopres, name = "g_bopreales", path = path)
+})
 
 ### grafico dinamico de TIRs
 smooth_data <- bopres %>% 
@@ -213,7 +237,9 @@ g_bopres_dinamico = bopres %>%
     caption = paste0(.pie, ' en base a datos de mercado (BYMA)'),
     color = NULL
   )
-grabaGrafo(variable = g_bopres_dinamico, path = path)  
+log_timed("g_bopreales_dinamico", {
+  grabaGrafo(variable = g_bopres_dinamico, path = path)  
+})
 
 
 glob = globales %>% filter(date == max(globales$date)) %>% 
@@ -242,4 +268,6 @@ g_glob_bopre = df %>%
        color = NULL,
        caption = paste0(.pie, ' en base a datos de mercado (BYMA)'))
 
-grabaGrafo(variable = g_glob_bopre, name = "g_glob_bopre", path = path)
+log_timed("g_glob_bopre", {
+  grabaGrafo(variable = g_glob_bopre, name = "g_glob_bopre", path = path)
+})
