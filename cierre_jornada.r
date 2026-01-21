@@ -257,8 +257,11 @@ gsutil_args <- c(
   "gs://reportes-cierre-jornada"
 )
 
-on.exit({
-  if (length(list.files(path, recursive = TRUE)) > 0L) {
+run_gsutil_sync <- function() {
+  file_count <- length(list.files(path, recursive = TRUE))
+  cat(sprintf("[%s] Archivos para sync: %s", format(Sys.time(), "%F %T"), file_count),
+      "\n", file = log_file, append = TRUE)
+  if (file_count > 0L) {
     msg <- sprintf("[%s] Lanzando gsutil rsync...", format(Sys.time(), "%F %T"))
     cat(msg, "\n", file = log_file, append = TRUE)
     gsutil_out <- tryCatch(
@@ -276,8 +279,10 @@ on.exit({
       cat("\n", file = log_file, append = TRUE)
     }
   }
-}, add = TRUE)
+}
 
+
+run_gsutil_sync()
 
 functions::log_msg(
   paste("Finaliza proceso generador de cierre a las: ", Sys.time()),  
