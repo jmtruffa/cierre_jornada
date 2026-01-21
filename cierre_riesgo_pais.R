@@ -1,8 +1,19 @@
 file = paste0(format(Sys.Date(), "./%Y%m%d"), " embi")
-download.file(url = "https://cdn.bancentral.gov.do/documents/entorno-internacional/documents/Serie_Historica_Spread_del_EMBI.xlsx?v=1713185477139",
-              destfile = file)
+invisible(
+  suppressWarnings(
+    download.file(
+      url = "https://cdn.bancentral.gov.do/documents/entorno-internacional/documents/Serie_Historica_Spread_del_EMBI.xlsx?v=1713185477139",
+      destfile = file,
+      quiet = TRUE
+    )
+  )
+)
 
-rp = readxl::read_xlsx(file, skip = 1)
+rp = suppressMessages(
+  suppressWarnings(
+    readxl::read_xlsx(file, skip = 1)
+  )
+)
 
 # borro el archivo file
 file.remove(file)

@@ -15,7 +15,11 @@ library(htmltools)
 
 ```{r mulc, echo = FALSE}
 knitr::opts_chunk$set(comment = "")
-mulc %>% tail() %>% flextable() %>% width(j="date", width = 1.) %>%   align(align="center", part = "all")
+if (exists("mulc", inherits = TRUE)) {
+  mulc %>% tail() %>% flextable() %>% width(j="date", width = 1.) %>% align(align="center", part = "all")
+} else {
+  NULL
+}
 ```
 
 <br>
@@ -24,7 +28,11 @@ mulc %>% tail() %>% flextable() %>% width(j="date", width = 1.) %>%   align(alig
 
 ```{r reservas, echo = FALSE}
 knitr::opts_chunk$set(comment = "")
-reservas %>% mutate(var=valor - lag(valor)) %>% tail() %>% select(date, reservasTXT, var) %>% flextable() %>% width(j="date", width = 1.) %>%   align(align="center", part = "all")
+if (exists("reservas", inherits = TRUE)) {
+  reservas %>% mutate(var=valor - lag(valor)) %>% tail() %>% select(date, reservasTXT, var) %>% flextable() %>% width(j="date", width = 1.) %>% align(align="center", part = "all")
+} else {
+  NULL
+}
 ```
 
 <br>
@@ -34,7 +42,11 @@ reservas %>% mutate(var=valor - lag(valor)) %>% tail() %>% select(date, reservas
 ```{r fx, echo = FALSE}
 knitr::opts_chunk$set(comment = "")
 #fx %>% select (date, mepAL, varD_mepAL, varS_mepAL, ccl3, varD_ccl3, varS_ccl3, canjeCCL3, A3500, brechaTXT) %>% tail() %>% print(n = Inf, width = Inf)
-tabla_fx
+if (exists("tabla_fx", inherits = TRUE)) {
+  tabla_fx
+} else {
+  NULL
+}
 ```
 
 <br>
@@ -127,35 +139,39 @@ depos_tabla
 **CHEQUEO TC IMPLICITO MOVIMIENTOS TESORO**
 ```{r chequeo, echo = FALSE}
 
-depos %>% 
-  left_join(tc) %>% 
-  mutate(TCImplicito = abs(vardepospesos/vardeposusd), TCA3500 = vardeposusd * A3500) %>% 
-  select(date, deposusd, vardeposusd, depospesos, vardepospesos, A3500, TCImplicito, TCA3500) %>% 
-  tail(n=19) %>% 
-  mutate(
-  across(c(A3500, TCImplicito, TCA3500),
-         ~ trunc(.x * 100) / 100)  # truncar a 2 decimales
-) %>% 
-  rename(
-    "FECHA" = date,
-    "DEPOS USD" = deposusd,
-    "DELTA DEPOS USD" = vardeposusd,
-    "DEPOS $" = depospesos,
-    "DELTA DEPOS $" = vardepospesos,
-    "TC A3500" = A3500,
-    "TC IMPLICITO" = TCImplicito,
-    "TC A3500 x DELTA DEPOS USD" = TCA3500
+if (exists("depos", inherits = TRUE) && exists("tc", inherits = TRUE)) {
+  depos %>% 
+    left_join(tc) %>% 
+    mutate(TCImplicito = abs(vardepospesos/vardeposusd), TCA3500 = vardeposusd * A3500) %>% 
+    select(date, deposusd, vardeposusd, depospesos, vardepospesos, A3500, TCImplicito, TCA3500) %>% 
+    tail(n=19) %>% 
+    mutate(
+    across(c(A3500, TCImplicito, TCA3500),
+           ~ trunc(.x * 100) / 100)  # truncar a 2 decimales
   ) %>% 
-  flextable() %>%
-  colformat_num(
-  j = c("DEPOS USD", "DELTA DEPOS USD", "DEPOS $", "DELTA DEPOS $", 
-        "TC A3500", "TC IMPLICITO", "TC A3500 x DELTA DEPOS USD"),
-  digits = 2,
-  big.mark = ".",
-  decimal.mark = ",",
-  formatter = function(x) trunc(x * 100) / 100
-) %>% 
-  autofit()
+    rename(
+      "FECHA" = date,
+      "DEPOS USD" = deposusd,
+      "DELTA DEPOS USD" = vardeposusd,
+      "DEPOS $" = depospesos,
+      "DELTA DEPOS $" = vardepospesos,
+      "TC A3500" = A3500,
+      "TC IMPLICITO" = TCImplicito,
+      "TC A3500 x DELTA DEPOS USD" = TCA3500
+    ) %>% 
+    flextable() %>%
+    colformat_num(
+    j = c("DEPOS USD", "DELTA DEPOS USD", "DEPOS $", "DELTA DEPOS $", 
+          "TC A3500", "TC IMPLICITO", "TC A3500 x DELTA DEPOS USD"),
+    digits = 2,
+    big.mark = ".",
+    decimal.mark = ",",
+    formatter = function(x) trunc(x * 100) / 100
+  ) %>% 
+    autofit()
+} else {
+  NULL
+}
   
 ```
 <br>
@@ -270,7 +286,11 @@ tabla1
 **RIESGO** **PAIS**
 
 ```{r riesgo_pais, echo = FALSE}
-rp %>% tail() %>% flextable() %>% width(j="date", width = 1.) %>%   align(align="center", part = "all") 
+if (exists("rp", inherits = TRUE)) {
+  rp %>% tail() %>% flextable() %>% width(j="date", width = 1.) %>% align(align="center", part = "all") 
+} else {
+  NULL
+}
 
 ```
 
@@ -279,7 +299,11 @@ rp %>% tail() %>% flextable() %>% width(j="date", width = 1.) %>%   align(align=
 **MERVAL**
 
 ```{r merval, echo = FALSE}
-merval %>% tail(n=10)%>% flextable() %>% width(j="date", width = 1.) %>%   align(align="center", part = "all") %>%  colformat_double(j = c(3:4, 6:7,10),digits = 2, suffix = "%")
+if (exists("merval", inherits = TRUE)) {
+  merval %>% tail(n=10) %>% flextable() %>% width(j="date", width = 1.) %>% align(align="center", part = "all") %>% colformat_double(j = c(3:4, 6:7,10),digits = 2, suffix = "%")
+} else {
+  NULL
+}
 ```
 
 <br>
@@ -287,10 +311,14 @@ merval %>% tail(n=10)%>% flextable() %>% width(j="date", width = 1.) %>%   align
 **ROFEX**
 
 ```{r rofex, echo = FALSE}
-vol %>% 
-  mutate(
-    across(c(OI, vol), ~ . - lag(.,1), .names = "diff_{.col}")
-  ) %>% 
-  tail()%>% flextable() %>% width(j="date", width = 1.) %>%   align(align="center", part = "all")
+if (exists("vol", inherits = TRUE)) {
+  vol %>% 
+    mutate(
+      across(c(OI, vol), ~ . - lag(.,1), .names = "diff_{.col}")
+    ) %>% 
+    tail() %>% flextable() %>% width(j="date", width = 1.) %>% align(align="center", part = "all")
+} else {
+  NULL
+}
 
 ```

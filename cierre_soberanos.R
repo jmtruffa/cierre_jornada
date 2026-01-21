@@ -47,22 +47,26 @@ log_timed("curvaAR (globales)", {
   globales <<- curvaAR(from = "2023-12-02")
 })
 
-curva_sob = globales %>% group_by(ticker) %>% arrange(date) %>% 
-  do(tail(.,n=1)) %>% 
-  mutate(Ley = ifelse(str_detect(ticker, "GD"), "Global", "Bonar")) %>% 
-  ggplot(aes(x=mduration, y=yield, color = Ley)) +
-  theme_usado() +
-  geom_point() +
-  geom_text_repel(aes(label = ticker), show.legend = F) +
-  geom_smooth(method = "lm", formula = y ~ poly(x, 2), se = FALSE, show.legend = F) +
-  scale_y_continuous(breaks = breaks_extended(10), labels = scales::percent, ) +
-  scale_color_manual(name = NULL, labels = c("Bonar", "Global"), values = .paleta) +
-  labs(title = paste0("CURVA BONOS SOBERANOS"),
-       subtitle = paste0("Precios BYMA. Último dato: ", max(globales$date)),
-       x = 'Duration',
-       y = 'TIR',
-       caption = paste0(.pie, ' en base a datos BYMA')
+curva_sob = suppressMessages(
+  suppressWarnings(
+    globales %>% group_by(ticker) %>% arrange(date) %>% 
+      do(tail(.,n=1)) %>% 
+      mutate(Ley = ifelse(str_detect(ticker, "GD"), "Global", "Bonar")) %>% 
+      ggplot(aes(x=mduration, y=yield, color = Ley)) +
+      theme_usado() +
+      geom_point() +
+      geom_text_repel(aes(label = ticker), show.legend = F) +
+      geom_smooth(method = "lm", formula = y ~ poly(x, 2), se = FALSE, show.legend = F) +
+      scale_y_continuous(breaks = breaks_extended(10), labels = scales::percent, ) +
+      scale_color_manual(name = NULL, labels = c("Bonar", "Global"), values = .paleta) +
+      labs(title = paste0("CURVA BONOS SOBERANOS"),
+           subtitle = paste0("Precios BYMA. Último dato: ", max(globales$date)),
+           x = 'Duration',
+           y = 'TIR',
+           caption = paste0(.pie, ' en base a datos BYMA')
+      )
   )
+)
 
 log_timed("g_curva_sob", {
   grabaGrafo(variable = curva_sob, name = "g_curva_sob", path = path)
@@ -98,43 +102,47 @@ log_timed("g_spread30_35", {
 
 ################################
 ## regresiones por legislación
-reg_legis = globales %>% 
-  select(date, ticker, yield, mduration) %>% 
-  mutate(Ley = ifelse(str_detect(ticker, "GD"), "Global", "Bonar")) %>%
-  ggplot(aes(x=date, y=yield, color = Ley)) +
-  theme_usado() +
-  geom_smooth(linewidth = 1, se = F) +
-  scale_x_date(date_breaks="3 months", labels = label_date(format = "%b\n %Y", locale="es")) +
-  scale_y_continuous(breaks = breaks_extended(10), labels = scales::percent) +
-  scale_color_manual(name = NULL, values = .paleta) +
-  labs(title = paste0("TIR CURVA SOBERANA"),
-       subtitle = paste0("Regresión de YTM segmentada por Legislacion. Último dato: ", max(globales$date)),
-       x = 'Fecha',
-       y = 'TIR',
-       caption = paste0(.pie, ' en base a datos de BYMA'))
+reg_legis = suppressMessages(
+  globales %>% 
+    select(date, ticker, yield, mduration) %>% 
+    mutate(Ley = ifelse(str_detect(ticker, "GD"), "Global", "Bonar")) %>%
+    ggplot(aes(x=date, y=yield, color = Ley)) +
+    theme_usado() +
+    geom_smooth(linewidth = 1, se = F) +
+    scale_x_date(date_breaks="3 months", labels = label_date(format = "%b\n %Y", locale="es")) +
+    scale_y_continuous(breaks = breaks_extended(10), labels = scales::percent) +
+    scale_color_manual(name = NULL, values = .paleta) +
+    labs(title = paste0("TIR CURVA SOBERANA"),
+         subtitle = paste0("Regresión de YTM segmentada por Legislacion. Último dato: ", max(globales$date)),
+         x = 'Fecha',
+         y = 'TIR',
+         caption = paste0(.pie, ' en base a datos de BYMA'))
+)
 log_timed("g_reg_legis", {
   grabaGrafo(variable = reg_legis, name = "g_reg_legis", path = path)
 })
 
 
-hist_YTM_sob = globales %>% 
-  ggplot(aes(x=date, y=yield, color = ticker, label = ticker)) +
-  theme_usado() +
-  geom_point() +
-  scale_y_continuous(breaks = breaks_extended(10), labels = scales::percent) +
-  scale_x_date(date_breaks = "1 months", date_labels = "%b\n%Y") +
-  labs(title = paste0("TIR SOBERANOS"),
-       subtitle = paste0("Último dato: ", max(globales$date)),
-       x = '',
-       y = 'TIR',
-       color = NULL,
-       caption = paste0(.pie, ' en base a datos de mercado (BYMA)')) +
-  
-  theme( # remove the vertical grid lines
-    panel.grid.major.x = element_blank() ,
-    #panel.grid.major.y = element_blank(),
-    title = element_text(size=12, face='bold')
-  ) 
+hist_YTM_sob = suppressWarnings(
+  globales %>% 
+    ggplot(aes(x=date, y=yield, color = ticker, label = ticker)) +
+    theme_usado() +
+    geom_point() +
+    scale_y_continuous(breaks = breaks_extended(10), labels = scales::percent) +
+    scale_x_date(date_breaks = "1 months", date_labels = "%b\n%Y") +
+    labs(title = paste0("TIR SOBERANOS"),
+         subtitle = paste0("Último dato: ", max(globales$date)),
+         x = '',
+         y = 'TIR',
+         color = NULL,
+         caption = paste0(.pie, ' en base a datos de mercado (BYMA)')) +
+    
+    theme( # remove the vertical grid lines
+      panel.grid.major.x = element_blank() ,
+      #panel.grid.major.y = element_blank(),
+      title = element_text(size=12, face='bold')
+    )
+)
 log_timed("g_hist_YTM_sob", {
   grabaGrafo(variable = hist_YTM_sob, name = "g_hist_YTM_sob", path = path)  
 })
@@ -172,28 +180,32 @@ bopres = cbind(bono, getYields(bono$ticker,
                              precios = bono$price,
                              endpoint = 'yield')) %>% select(-precios)
 
-g_bopres = bopres %>% 
-  #filter(str_detect(ticker, "D$")) %>% 
-  filter(date == max(date)) %>% 
-  #filter(date == Sys.Date()  | date == Sys.Date() - 1) %>% 
-  ggplot(aes(x=mduration, y=yield, group = date, color = as.factor(date))) +
-  theme_usado() +
-  
-  geom_point() +
-  
-  geom_smooth(method = "lm", se=F, show.legend = FALSE, linewidth = 1) +
-  
-  geom_text_repel(show.legend = F, aes(label = ticker)) +
-  
-  scale_color_manual(name = NULL, values = .paleta) + 
-  scale_y_continuous(breaks = breaks_extended(10), labels = scales::percent) +
-  scale_x_continuous(breaks = breaks_extended(10)) +
-  
-  labs(title = "CURVA TIR BOPREALES",
-       subtitle = paste0("En base a precios de mercado.", "Último dato: ", max(bopres$date)),
-       y = "TIR",
-       x = "Duration Modificada",
-       caption = paste0(.pie, ' en base a datos de mercado (BYMA)'))
+g_bopres = suppressMessages(
+  suppressWarnings(
+    bopres %>% 
+      #filter(str_detect(ticker, "D$")) %>% 
+      filter(date == max(date)) %>% 
+      #filter(date == Sys.Date()  | date == Sys.Date() - 1) %>% 
+      ggplot(aes(x=mduration, y=yield, group = date, color = as.factor(date))) +
+      theme_usado() +
+      
+      geom_point() +
+      
+      geom_smooth(method = "lm", se=F, show.legend = FALSE, linewidth = 1) +
+      
+      geom_text_repel(show.legend = F, aes(label = ticker)) +
+      
+      scale_color_manual(name = NULL, values = .paleta) + 
+      scale_y_continuous(breaks = breaks_extended(10), labels = scales::percent) +
+      scale_x_continuous(breaks = breaks_extended(10)) +
+      
+      labs(title = "CURVA TIR BOPREALES",
+           subtitle = paste0("En base a precios de mercado.", "Último dato: ", max(bopres$date)),
+           y = "TIR",
+           x = "Duration Modificada",
+           caption = paste0(.pie, ' en base a datos de mercado (BYMA)'))
+  )
+)
 
 log_timed("g_bopreales", {
   grabaGrafo(variable = g_bopres, name = "g_bopreales", path = path)
@@ -216,27 +228,31 @@ q_colores = bopres %>%
   pull(n)
 
 # Gráfico
-g_bopres_dinamico = bopres %>% 
-  #filter(str_detect(ticker, "D$")) %>%
-  ggplot(aes(x = date, y = yield, color = ticker, group = ticker)) +
-  theme_usado() + 
-  geom_point() +
-  geom_smooth(se = FALSE, show.legend = FALSE) +
-  geom_text_repel(data = smooth_data,
-                  aes(x = date, y = smooth, label = ticker, color = ticker),
-                  show.legend = FALSE,
-                  nudge_x = 5, hjust = 0, direction = "y") +
-  scale_y_continuous(breaks = breaks_extended(10), labels = percent) +
-  scale_x_date(date_breaks = "3 months", date_labels = "%b\n%Y") +
-  scale_color_manual(values = colorRampPalette(.paleta)(q_colores)) +
-  labs(
-    title = "EVOLUCIÓN CURVA TIR BOPREALES",
-    subtitle = paste0("En base a precios de mercado.", "Último dato: ", max(bopres$date)),
-    y = "TIR",
-    x = "",
-    caption = paste0(.pie, ' en base a datos de mercado (BYMA)'),
-    color = NULL
+g_bopres_dinamico = suppressMessages(
+  suppressWarnings(
+    bopres %>% 
+      #filter(str_detect(ticker, "D$")) %>%
+      ggplot(aes(x = date, y = yield, color = ticker, group = ticker)) +
+      theme_usado() + 
+      geom_point() +
+      geom_smooth(se = FALSE, show.legend = FALSE) +
+      geom_text_repel(data = smooth_data,
+                      aes(x = date, y = smooth, label = ticker, color = ticker),
+                      show.legend = FALSE,
+                      nudge_x = 5, hjust = 0, direction = "y") +
+      scale_y_continuous(breaks = breaks_extended(10), labels = percent) +
+      scale_x_date(date_breaks = "3 months", date_labels = "%b\n%Y") +
+      scale_color_manual(values = colorRampPalette(.paleta)(q_colores)) +
+      labs(
+        title = "EVOLUCIÓN CURVA TIR BOPREALES",
+        subtitle = paste0("En base a precios de mercado.", "Último dato: ", max(bopres$date)),
+        y = "TIR",
+        x = "",
+        caption = paste0(.pie, ' en base a datos de mercado (BYMA)'),
+        color = NULL
+      )
   )
+)
 log_timed("g_bopreales_dinamico", {
   grabaGrafo(variable = g_bopres_dinamico, path = path)  
 })
@@ -250,23 +266,27 @@ bopres$tipo = "BOPREAL"
 
 
 df = rbind(glob, bopres %>% select(ticker, date, yield, mduration,tipo)) 
-g_glob_bopre = df %>% 
-  filter(date == max(date)) %>% 
-  filter(ticker != "BPJ5C" & ticker != "BPJ5D") %>% 
-  ggplot(aes(x=mduration, y=yield, color = tipo)) +
-  theme_usado() +
-  geom_point() +
-  geom_smooth(se=F, method = "lm", formula = "y ~ log(x)", show.legend = F) + 
-  geom_text_repel(show.legend = F, aes(label=ticker)) +
-  scale_y_continuous(breaks = breaks_extended(10), labels = scales::percent) +
-  scale_color_manual(values = .paleta) +
-  scale_x_continuous(breaks = seq(0, max(df$mduration) + 1, by = 0.5)) +
-  labs(title = paste0("TIR SOBERANOS Y BOPREAL"),
-       subtitle = paste0("Último dato: ", max(df$date)),
-       x = '',
-       y = 'TIR',
-       color = NULL,
-       caption = paste0(.pie, ' en base a datos de mercado (BYMA)'))
+g_glob_bopre = suppressMessages(
+  suppressWarnings(
+    df %>% 
+      filter(date == max(date)) %>% 
+      filter(ticker != "BPJ5C" & ticker != "BPJ5D") %>% 
+      ggplot(aes(x=mduration, y=yield, color = tipo)) +
+      theme_usado() +
+      geom_point() +
+      geom_smooth(se=F, method = "lm", formula = "y ~ log(x)", show.legend = F) + 
+      geom_text_repel(show.legend = F, aes(label=ticker)) +
+      scale_y_continuous(breaks = breaks_extended(10), labels = scales::percent) +
+      scale_color_manual(values = .paleta) +
+      scale_x_continuous(breaks = seq(0, max(df$mduration) + 1, by = 0.5)) +
+      labs(title = paste0("TIR SOBERANOS Y BOPREAL"),
+           subtitle = paste0("Último dato: ", max(df$date)),
+           x = '',
+           y = 'TIR',
+           color = NULL,
+           caption = paste0(.pie, ' en base a datos de mercado (BYMA)'))
+  )
+)
 
 log_timed("g_glob_bopre", {
   grabaGrafo(variable = g_glob_bopre, name = "g_glob_bopre", path = path)

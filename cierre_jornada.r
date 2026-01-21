@@ -1,26 +1,28 @@
-library(bizdays)
-library(tidyverse)
-library(functions)
-library(bcra)
-library(finance)
-library(outlier)
-library(methodsPPI)
-library(bdscale)
-library(scales)
-library(ggthemes)
-library(ggrepel)
-library(flextable)
-library(slider) # lo uso en cierre_fx para la volatilidad
-library(jsonlite) # la uso en cierre_boncer_be
-library(zoo)
-library(tidyquant)
-library(purrr)
-require(httr2)
-library(patchwork)
-library(gghighlight)
-library(rofex)
-library(officer)
-library(R.utils)
+suppressPackageStartupMessages({
+  library(bizdays)
+  library(tidyverse)
+  library(functions)
+  library(bcra)
+  library(finance)
+  library(outlier)
+  library(methodsPPI)
+  library(bdscale)
+  library(scales)
+  library(ggthemes)
+  library(ggrepel)
+  library(flextable)
+  library(slider) # lo uso en cierre_fx para la volatilidad
+  library(jsonlite) # la uso en cierre_boncer_be
+  library(zoo)
+  library(tidyquant)
+  library(purrr)
+  require(httr2)
+  library(patchwork)
+  library(gghighlight)
+  library(rofex)
+  library(officer)
+  library(R.utils)
+})
 
 # vamos a llamar cada script con esta función para evitar que si una falle, se caiga el resto
 safe_source <- function(file, timeout = 600) {
@@ -83,7 +85,7 @@ safe_render <- function(...) {
 # }
 setwd("/home/jmt/dev/r/outlier/cierre_jornada")
 functions::setup(server = "GC")
-outlier::theme_outlier()
+suppressWarnings(invisible(outlier::theme_outlier()))
 path = "/home/jmt/cierre-jornada"
 path_source = "/home/jmt/dev/r/outlier/cierre_jornada"
 update = T
