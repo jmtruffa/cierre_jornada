@@ -34,7 +34,8 @@ curvaAR = function(from = "2020-09-15", to = Sys.Date(), comi = 0.0) {
 }
 
 log_step <- function(msg) {
-  functions::log_msg(msg, "INFO", log_file = log_file)
+  cat(sprintf("[%s] INFO: %s", format(Sys.time(), "%F %T"), msg),
+      "\n", file = log_file, append = TRUE)
 }
 
 log_timed <- function(label, expr) {

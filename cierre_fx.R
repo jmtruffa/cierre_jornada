@@ -54,9 +54,9 @@ ORDER BY
   END;
 "
 last = functions::dbExecuteQuery(query = query, server = server, port = port) #%>% add_row(date = Sys.Date(), last_mlc = 1240)
-tc = functions::dbGetTable("A3500", server = server, port = port) %>% left_join(last) #%>% 
+tc = functions::dbGetTable("A3500", server = server, port = port) %>% left_join(last, by = "date") #%>% 
 
-fx=left_join(dlr, ccl, join_by(date == date)) %>%
+fx=left_join(dlr, ccl, by = "date") %>%
   mutate(
     across(-c(date, Canje), ~ (. / lag(.) - 1) * 100, .names = "varD_{.col}"),
     across(c(mepAL, mepGD, cclGD, ccl), ~ (. / lag(., 5) - 1) * 100, .names = "varS_{.col}"),
@@ -64,7 +64,7 @@ fx=left_join(dlr, ccl, join_by(date == date)) %>%
   ) %>%
   relocate(date, mepAL, mepGD, cclGD, Canje, ccl) %>% 
   select(date, mepAL, varD_mepAL, varS_mepAL, mepGD, varD_mepGD, varS_mepGD, cclGD, varD_cclGD, varS_cclGD, Canje, ccl, varD_ccl, varS_ccl) %>% 
-  left_join(tc) %>% 
+  left_join(tc, by = "date") %>% 
   mutate(
     brechaCCL = (ccl / A3500) - 1,
     brechaTXT = paste0(format(round(brechaCCL * 100, 0), nsmall = 0), "%"),
@@ -78,7 +78,7 @@ fx=left_join(dlr, ccl, join_by(date == date)) %>%
     #canje = ccl / mepAL - 1
     
   )
-set = left_join(dlr, ccl) %>% left_join(tc) %>% select(-ccl3, -cclAL)
+set = left_join(dlr, ccl, by = "date") %>% left_join(tc, by = "date") %>% select(-ccl3, -cclAL)
 diaria = set %>% mutate(across(-c(date, Canje), ~ (. / lag(.) - 1) * 100, .names = "varD_{.col}"),)
 
 tabla_fx = set %>% 
@@ -92,7 +92,7 @@ tabla_fx = set %>%
     
   ) %>% 
   select(-(ends_with("_lagged"))) %>% 
-  left_join(diaria) %>% 
+  left_join(diaria, by = "date") %>% 
   relocate(date, mepAL, varD_mepAL, varS_mepAL, mepGD, varD_mepGD, varS_mepGD, cclGD, varD_cclGD, varS_cclGD, ccl, varD_ccl, varS_ccl, Canje, A3500, varD_A3500, varS_A3500, last_mlc, varD_last_mlc, varS_last_mlc) %>% 
   mutate(Canje = Canje * 100) %>% 
   tail(n=15) %>% 
@@ -144,50 +144,58 @@ valores = fx %>% filter(
                         #   date == "2024-01-22" |
                         #   date == "2023-12-27" |
                           date == max(fx$date))
-g_fx_brecha = fx %>% 
-  drop_na() %>% 
-  select(date, contains("brecha")) %>%
-  filter(date >= "2025-01-01") %>%
-  ggplot(aes(x=date, y=brechaCCL, label = brechaTXT)) +
-  theme_usado() +
-  geom_line(linewidth = 1, color = .paleta[1]) +
-  geom_text_repel(data = valores, nudge_y = 0.03,nudge_x = 10, size = 4.5) +
-  scale_y_continuous(labels = scales::percent,
-                     breaks = breaks_extended(12)) +
-  scale_x_date(date_breaks="1 month", date_labels="%b\n%Y",
-                   expand = c(0.06,0)) +
-  labs(title = "Brecha CCL vs - TC A3500",
-       subtitle = paste0('Valores al: ', max(fx$date)),
-       y = 'Brecha',
-       x = '',
-       caption = paste0(.pie, " en base a precios de mercado y BCRA") ) #+
-  #geom_vline(xintercept = as.Date("2024-07-15"), linetype = "dashed") 
+g_fx_brecha = suppressMessages(
+  suppressWarnings(
+    fx %>% 
+      drop_na() %>% 
+      select(date, contains("brecha")) %>%
+      filter(date >= "2025-01-01") %>%
+      ggplot(aes(x=date, y=brechaCCL, label = brechaTXT)) +
+      theme_usado() +
+      geom_line(linewidth = 1, color = .paleta[1]) +
+      geom_text_repel(data = valores, nudge_y = 0.03,nudge_x = 10, size = 4.5) +
+      scale_y_continuous(labels = scales::percent,
+                         breaks = breaks_extended(12)) +
+      scale_x_date(date_breaks="1 month", date_labels="%b\n%Y",
+                       expand = c(0.06,0)) +
+      labs(title = "Brecha CCL vs - TC A3500",
+           subtitle = paste0('Valores al: ', max(fx$date)),
+           y = 'Brecha',
+           x = '',
+           caption = paste0(.pie, " en base a precios de mercado y BCRA") ) #+
+      #geom_vline(xintercept = as.Date("2024-07-15"), linetype = "dashed") 
+  )
+)
 
 grabaGrafo(variable = g_fx_brecha, path = path)
 
 ### Financieros
 valores = fx %>% filter(date >= "2025-01-01") %>% select(date, mepAL, ccl, A3500) %>% 
   tail(n=1) %>% pivot_longer(!date)
-g_fx = fx %>% filter(date >= "2025-01-01") %>% 
-  select(date, mepAL, ccl, A3500) %>% 
-  #drop_na() %>% tail()
-  select(date, mepAL, ccl, A3500) %>% 
-  pivot_longer(!date) %>% 
-  ggplot(aes(x=date, y=value, color=name)) +
-  theme_usado() +
-  geom_line(linewidth = 1) +
-  geom_text_repel(data = valores, aes(label = format(round(value,0), big.mark = ".", decimal.mark = ",")), 
-                  nudge_y = 10,
-                  nudge_x = 10, 
-                  show.legend = F) +
-  scale_x_date(date_breaks = "1 months",  label = scales::label_date("%b\n%Y", locale = "es")) +
-  scale_y_continuous(labels = label_currency(), breaks = breaks_extended(10)) +
-  labs(title = "TIPOS DE CAMBIO",
-       subtitle = paste0('Valores al: ', max(fx$date)),
-       y = 'Pesos',
-       x = '',
-       caption = paste0(.pie, " en base a precios de mercado y BCRA") ) +
-  scale_color_manual(name = "", labels = c("A3500", "CCL", "MEP AL30"), values = .paleta)
+g_fx = suppressMessages(
+  suppressWarnings(
+    fx %>% filter(date >= "2025-01-01") %>% 
+      select(date, mepAL, ccl, A3500) %>% 
+      #drop_na() %>% tail()
+      select(date, mepAL, ccl, A3500) %>% 
+      pivot_longer(!date) %>% 
+      ggplot(aes(x=date, y=value, color=name)) +
+      theme_usado() +
+      geom_line(linewidth = 1) +
+      geom_text_repel(data = valores, aes(label = format(round(value,0), big.mark = ".", decimal.mark = ",")), 
+                      nudge_y = 10,
+                      nudge_x = 10, 
+                      show.legend = F) +
+      scale_x_date(date_breaks = "1 months",  label = scales::label_date("%b\n%Y", locale = "es")) +
+      scale_y_continuous(labels = label_currency(), breaks = breaks_extended(10)) +
+      labs(title = "TIPOS DE CAMBIO",
+           subtitle = paste0('Valores al: ', max(fx$date)),
+           y = 'Pesos',
+           x = '',
+           caption = paste0(.pie, " en base a precios de mercado y BCRA") ) +
+      scale_color_manual(name = "", labels = c("A3500", "CCL", "MEP AL30"), values = .paleta)
+  )
+)
 
 grabaGrafo(variable = g_fx, path = path)
 
@@ -265,20 +273,22 @@ z_long <- z_long %>%
   )
   )
 
-g_fx_volatilidad_zscore = ggplot(z_long, aes(x = date, y = zscore, color = serie_clean)) +
-  theme_usado() +
-  geom_line() +
-  geom_hline(yintercept = 0, linewidth = 0.3) +
-  geom_hline(yintercept = c(-1, 1), linetype = "dashed", linewidth = 0.3) +
-  geom_hline(yintercept = c(-2, 2), linetype = "dotted", linewidth = 0.3) +
-  scale_x_date(date_breaks = "3 months",  label = scales::label_date("%b\n%Y", locale = "es")) +
-  labs(
-    title = paste0("RETORNOS ESTANDARIZADOS (Z-SCORE) CON VENTANA ", n_win, " DÍAS"),
-    subtitle = paste0('Valores al: ', max(z_long$date)),
-    x = NULL, y = "Z-score (retorno / sd móvil)",
-    caption = paste0(.pie, " en base a BYMA y BCRA") ,
-    color = "Serie"
-  ) + facet_wrap(~ serie_clean, ncol = 1, scales = "free_y")
+g_fx_volatilidad_zscore = suppressWarnings(
+  ggplot(z_long, aes(x = date, y = zscore, color = serie_clean)) +
+    theme_usado() +
+    geom_line() +
+    geom_hline(yintercept = 0, linewidth = 0.3) +
+    geom_hline(yintercept = c(-1, 1), linetype = "dashed", linewidth = 0.3) +
+    geom_hline(yintercept = c(-2, 2), linetype = "dotted", linewidth = 0.3) +
+    scale_x_date(date_breaks = "3 months",  label = scales::label_date("%b\n%Y", locale = "es")) +
+    labs(
+      title = paste0("RETORNOS ESTANDARIZADOS (Z-SCORE) CON VENTANA ", n_win, " DÍAS"),
+      subtitle = paste0('Valores al: ', max(z_long$date)),
+      x = NULL, y = "Z-score (retorno / sd móvil)",
+      caption = paste0(.pie, " en base a BYMA y BCRA") ,
+      color = "Serie"
+    ) + facet_wrap(~ serie_clean, ncol = 1, scales = "free_y")
+)
 grabaGrafo(variable = g_fx_volatilidad_zscore, path = path)
 
 
@@ -301,64 +311,76 @@ fx_long <- fx_vol %>%
    
 
 
-g_fx_vol_separada = ggplot(fx_long, aes(date, vol)) +
-  theme_usado() +
-  geom_line() +
-  scale_x_date(date_breaks = "2 months",  label = scales::label_date("%b\n%Y", locale = "es")) +
-  facet_wrap(~ serie, ncol = 1, scales = "free_y") +
-  labs(title = "Volatilidad (σ) móvil de 5 ruedas – Comparativa",
-       subtitle = paste0('Valores al: ', max(fx_long$date)),
-       x = '',
-       caption = paste0(.pie, " en base a precios de mercado y BCRA") ) 
+g_fx_vol_separada = suppressWarnings(
+  ggplot(fx_long, aes(date, vol)) +
+    theme_usado() +
+    geom_line() +
+    scale_x_date(date_breaks = "2 months",  label = scales::label_date("%b\n%Y", locale = "es")) +
+    facet_wrap(~ serie, ncol = 1, scales = "free_y") +
+    labs(title = "Volatilidad (σ) móvil de 5 ruedas – Comparativa",
+         subtitle = paste0('Valores al: ', max(fx_long$date)),
+         x = '',
+         caption = paste0(.pie, " en base a precios de mercado y BCRA") )
+)
 
-g_fx_vol_junta = ggplot(fx_long, aes(date, vol, colour = serie)) +
-  theme_usado() +
-  geom_line(size = 0.9) +
-  scale_x_date(date_breaks = "2 months",  label = scales::label_date("%b\n%Y", locale = "es")) +
-  labs(title = "Volatilidad (σ) móvil de 5 ruedas – Comparativa",
-       subtitle = paste0('Valores al: ', max(fx_long$date)),
-       x = '',
-       caption = paste0(.pie, " en base a precios de mercado y BCRA"), color = NULL )  
+g_fx_vol_junta = suppressWarnings(
+  ggplot(fx_long, aes(date, vol, colour = serie)) +
+    theme_usado() +
+    geom_line(linewidth = 0.9) +
+    scale_x_date(date_breaks = "2 months",  label = scales::label_date("%b\n%Y", locale = "es")) +
+    labs(title = "Volatilidad (σ) móvil de 5 ruedas – Comparativa",
+         subtitle = paste0('Valores al: ', max(fx_long$date)),
+         x = '',
+         caption = paste0(.pie, " en base a precios de mercado y BCRA"), color = NULL )
+)
 
 grabaGrafo(variable = g_fx_vol_separada, path = path)
 grabaGrafo(variable = g_fx_vol_junta, path = path)
 
-g_fx_vol_separada_ytd = ggplot(fx_long %>% filter(date >= "2025-01-01"), aes(date, vol)) +
-  theme_usado() +
-  geom_line() +
-  scale_x_date(date_breaks = "2 months",  label = scales::label_date("%b\n%Y", locale = "es")) +
-  facet_wrap(~ serie, ncol = 1, scales = "free_y") +
-  labs(title = "Volatilidad (σ) móvil de 5 ruedas – Comparativa",
-       subtitle = paste0('Valores al: ', max(fx_long$date)),
-       x = '',
-       caption = paste0(.pie, " en base a precios de mercado y BCRA") ) 
+g_fx_vol_separada_ytd = suppressWarnings(
+  ggplot(fx_long %>% filter(date >= "2025-01-01"), aes(date, vol)) +
+    theme_usado() +
+    geom_line() +
+    scale_x_date(date_breaks = "2 months",  label = scales::label_date("%b\n%Y", locale = "es")) +
+    facet_wrap(~ serie, ncol = 1, scales = "free_y") +
+    labs(title = "Volatilidad (σ) móvil de 5 ruedas – Comparativa",
+         subtitle = paste0('Valores al: ', max(fx_long$date)),
+         x = '',
+         caption = paste0(.pie, " en base a precios de mercado y BCRA") )
+)
 
-g_fx_vol_junta_ytd = ggplot(fx_long %>% filter(date >= "2025-01-01"), aes(date, vol, colour = serie)) +
-  theme_usado() +
-  geom_line(size = 0.9) +
-  scale_x_date(date_breaks = "2 months",  label = scales::label_date("%b\n%Y", locale = "es")) +
-  labs(title = "Volatilidad (σ) móvil de 5 ruedas – Comparativa",
-       subtitle = paste0('Valores al: ', max(fx_long$date)),
-       x = '',
-       caption = paste0(.pie, " en base a precios de mercado y BCRA"), color = NULL )  
+g_fx_vol_junta_ytd = suppressWarnings(
+  ggplot(fx_long %>% filter(date >= "2025-01-01"), aes(date, vol, colour = serie)) +
+    theme_usado() +
+    geom_line(linewidth = 0.9) +
+    scale_x_date(date_breaks = "2 months",  label = scales::label_date("%b\n%Y", locale = "es")) +
+    labs(title = "Volatilidad (σ) móvil de 5 ruedas – Comparativa",
+         subtitle = paste0('Valores al: ', max(fx_long$date)),
+         x = '',
+         caption = paste0(.pie, " en base a precios de mercado y BCRA"), color = NULL )
+)
 grabaGrafo(variable = g_fx_vol_separada_ytd, path = path)
 grabaGrafo(variable = g_fx_vol_junta_ytd, path = path)
 
 ### CANJE
-g_fx_canje = fx %>% 
-  drop_na() %>% 
-  ggplot(aes(x=date, y=Canje, label = paste0(format(round(Canje * 100, 2), nsmall = 2),"%"))) +
-  theme_usado() +
-  geom_line(linewidth = 1, color = .paleta[1]) +
-  geom_text_repel(aes(size = 2), data = . %>% tail(n=1), nudge_x = 50, show.legend = F) +
-  scale_y_continuous(labels = label_percent(), breaks = breaks_extended(10)) +
-  scale_x_date(date_breaks="2 months", labels = label_date(format = "%b\n %Y", locale = "es"), # date_labels="%b\n %Y",
-               expand = c(0.0,20)) +
-  labs(title = "CANJE CCL - MEP (VIA AL30)",
-       subtitle = paste0("Último operado: ", fx %>% tail(n=1) %>% pull(date)),
-       x = "", 
-       y = "PESOS",
-       caption = paste0(.pie, " en base a BCRA")) 
+g_fx_canje = suppressMessages(
+  suppressWarnings(
+    fx %>% 
+      drop_na() %>% 
+      ggplot(aes(x=date, y=Canje, label = paste0(format(round(Canje * 100, 2), nsmall = 2),"%"))) +
+      theme_usado() +
+      geom_line(linewidth = 1, color = .paleta[1]) +
+      geom_text_repel(aes(size = 2), data = . %>% tail(n=1), nudge_x = 50, show.legend = F) +
+      scale_y_continuous(labels = label_percent(), breaks = breaks_extended(10)) +
+      scale_x_date(date_breaks="2 months", labels = label_date(format = "%b\n %Y", locale = "es"), # date_labels="%b\n %Y",
+                   expand = c(0.0,20)) +
+      labs(title = "CANJE CCL - MEP (VIA AL30)",
+           subtitle = paste0("Último operado: ", fx %>% tail(n=1) %>% pull(date)),
+           x = "", 
+           y = "PESOS",
+           caption = paste0(.pie, " en base a BCRA"))
+  )
+)
 
 grabaGrafo(variable = g_fx_canje, path = path)
 
