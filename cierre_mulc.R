@@ -87,7 +87,9 @@ g_mlc_volumenMLC = suppressMessages(
 )
 
 
-grabaGrafo(variable = g_mlc_volumenMLC, path = path)
+suppressMessages(
+  grabaGrafo(variable = g_mlc_volumenMLC, path = path)
+)
 
 ##########################################################
 ### comprasBCRA en el MLC
@@ -123,7 +125,9 @@ g_mlc_comprasBCRA = suppressMessages(
   )
 )
 
-grabaGrafo(variable = g_mlc_comprasBCRA, path = path)
+suppressMessages(
+  grabaGrafo(variable = g_mlc_comprasBCRA, path = path)
+)
 
 
 
@@ -325,7 +329,9 @@ g_mlc_volumen_divisa_mep = suppressMessages(
       theme(legend.position = "bottom")
   )
 )
-grabaGrafo(variable = g_mlc_volumen_divisa_mep, path = path)
+suppressMessages(
+  grabaGrafo(variable = g_mlc_volumen_divisa_mep, path = path)
+)
 
 ####
 # pctMEP
@@ -354,7 +360,9 @@ g_mlc_pct_mep_mlc = suppressMessages(
 )
 
 
-grabaGrafo(variable = g_mlc_pct_mep_mlc, path = path)
+suppressMessages(
+  grabaGrafo(variable = g_mlc_pct_mep_mlc, path = path)
+)
 
 ##################################
 # DISTRIBUCION RUEDA MLC

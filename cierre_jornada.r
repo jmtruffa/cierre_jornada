@@ -88,7 +88,17 @@ functions::setup(server = "GC")
 suppressWarnings(invisible(outlier::theme_outlier()))
 path = "/home/jmt/cierre-jornada"
 path_source = "/home/jmt/dev/r/outlier/cierre_jornada"
-update = T
+update = F
+
+# Silenciar mensajes/advertencias en todos los gráficos guardados
+grabaGrafo_base <- grabaGrafo
+grabaGrafo <- function(...) {
+  suppressMessages(
+    suppressWarnings(
+      grabaGrafo_base(...)
+    )
+  )
+}
 
 functions::log_msg(
   paste("========================="),

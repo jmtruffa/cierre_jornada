@@ -57,14 +57,19 @@ serie_remu <- suppressMessages(
     range = "A2507"
   )
 ) %>%
-  as_tibble() %>%
-  select(1, 9)
+  as_tibble()
 unlink(tmp)
 
-colnames(serie_remu) = c("date", "tasa_remu")
-serie_remu$tasa_remu = serie_remu$tasa_remu / 100
-serie_remu$date = as.Date(serie_remu$date, format = "%d/%m/%Y")
-serie_remu = serie_remu %>% filter(!is.na(tasa_remu))
+if (ncol(serie_remu) >= 9) {
+  serie_remu <- serie_remu %>%
+    select(1, 9)
+  colnames(serie_remu) = c("date", "tasa_remu")
+  serie_remu$tasa_remu = serie_remu$tasa_remu / 100
+  serie_remu$date = as.Date(serie_remu$date, format = "%d/%m/%Y")
+  serie_remu = serie_remu %>% filter(!is.na(tasa_remu))
+} else {
+  serie_remu <- tibble::tibble(date = as.Date(character()), tasa_remu = numeric())
+}
 
 tasas_privados = tasas_privados %>%
   left_join(serie_remu, by = "date")
