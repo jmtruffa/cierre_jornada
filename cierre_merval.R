@@ -1,7 +1,13 @@
 fechaInicio = "2010-01-04"
 ccl = dbGetTable(table = "ccl", server = server, port = port) %>% distinct(date, .keep_all = T) %>% arrange(date)
-ccl = left_join(ccl, functions::getUSCPI(format = "daily", server = server, port = port) %>% 
-                  select(-series_id, USCPI = value)) %>% 
+ccl = left_join(
+  ccl,
+  suppressMessages(
+    functions::getUSCPI(format = "daily", server = server, port = port) %>% 
+      select(-series_id, USCPI = value)
+  ),
+  by = "date"
+) %>% 
   fill(USCPI)
 
 merval = tq_get("^MERV", from = "2010-01-01", to = Sys.Date() + 1) %>% 
@@ -16,7 +22,7 @@ merval = tq_get("^MERV", from = "2010-01-01", to = Sys.Date() + 1) %>%
 # ########################
 
 merval = merval %>% 
-  left_join(ccl) %>% 
+  left_join(ccl, by = "date") %>% 
   drop_na() %>%  
   mutate(
     varD = (merval /lag(merval) -1) * 100,

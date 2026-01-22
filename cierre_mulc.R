@@ -27,61 +27,63 @@ mlc_volumenMLC_long <- mulc %>%
                values_to = "value")
 fechas = mlc_volumenMLC_long %>% distinct(date) %>% pull(date)
 g_mlc_volumenMLC = suppressMessages(
-  ggplot(mlc_volumenMLC_long, aes(x = date, y = value, fill = type)) +
-    geom_bar(stat = "identity", position = "stack", width = 1) + 
-    geom_point(
-      data = mulc %>% select(date, pctBCRA), 
-      aes(x = date, y = pctBCRA * max(mlc_volumenMLC_long$value), color = "Compras BCRA"),
-      inherit.aes = FALSE, 
-    ) +
-    geom_point(
-      data = mulc %>% select(date, pctBCRA) %>% tail(n=1),
-      aes(x = date, y = pctBCRA * max(mlc_volumenMLC_long$value), color = "Compras BCRA"),
-      size = 4.5,    
-      inherit.aes = FALSE, 
-    ) +
-    geom_smooth(
-      data = mulc %>% select(date, pctBCRA), 
-      aes(x = date, y = pctBCRA * max(mlc_volumenMLC_long$value)),  # Specify y aesthetic here
-      color = .paleta[2],  # Use a specific color instead of fill
-      inherit.aes = FALSE,  # Prevent inheriting fill from the main ggplot call
-      se = F
-    ) +
-    theme_usado() +
-    scale_y_continuous(
-      name = "Millones USD",
-      labels = label_comma(scale = 1/1e6, big.mark = ".", decimal.mark = ","),
-      breaks_extended(10),
-      sec.axis = sec_axis(
-        ~ . / max(mlc_volumenMLC_long$value),
-        name = "pctBCRA",
-        labels = scales::percent,
-        breaks = breaks_extended(10)
+  suppressWarnings(
+    ggplot(mlc_volumenMLC_long, aes(x = date, y = value, fill = type)) +
+      geom_bar(stat = "identity", position = "stack", width = 1) + 
+      geom_point(
+        data = mulc %>% select(date, pctBCRA), 
+        aes(x = date, y = pctBCRA * max(mlc_volumenMLC_long$value), color = "Compras BCRA"),
+        inherit.aes = FALSE, 
+      ) +
+      geom_point(
+        data = mulc %>% select(date, pctBCRA) %>% tail(n=1),
+        aes(x = date, y = pctBCRA * max(mlc_volumenMLC_long$value), color = "Compras BCRA"),
+        size = 4.5,    
+        inherit.aes = FALSE, 
+      ) +
+      geom_smooth(
+        data = mulc %>% select(date, pctBCRA), 
+        aes(x = date, y = pctBCRA * max(mlc_volumenMLC_long$value)),  # Specify y aesthetic here
+        color = .paleta[2],  # Use a specific color instead of fill
+        inherit.aes = FALSE,  # Prevent inheriting fill from the main ggplot call
+        se = F
+      ) +
+      theme_usado() +
+      scale_y_continuous(
+        name = "Millones USD",
+        labels = label_comma(scale = 1/1e6, big.mark = ".", decimal.mark = ","),
+        breaks_extended(10),
+        sec.axis = sec_axis(
+          ~ . / max(mlc_volumenMLC_long$value),
+          name = "pctBCRA",
+          labels = scales::percent,
+          breaks = breaks_extended(10)
+        )
+      ) +
+      scale_x_cont_dates(
+        name = "",
+        business.dates = fechas,
+        labels = label_date(format = "%b-%y", locale = "es"),
+        max.major.breaks = 20
+      ) +
+      scale_fill_manual(
+        name = "",
+        values = .paleta[1:2],  # Use two colors from your palette
+        labels = c("Volumen MLC", "Volumen USMEP")  # Customize labels
+      ) +
+      scale_color_manual(
+        name = "",
+        values = .paleta[2],
+        labels = "Compras BCRA"
+      ) +
+      labs(
+        title = "VOLUMEN MULC (DIVISA Y MEP TODOS LOS PLAZOS) Y COMPRAS BCRA",
+        subtitle = paste0("Compras destacada última. Datos al ", mulc %>% tail(n = 1) %>% pull(date)),
+        y = "",
+        x = "",
+        caption = paste0(.pie, " en base a BCRA")
       )
-    ) +
-    scale_x_cont_dates(
-      name = "",
-      business.dates = fechas,
-      labels = label_date(format = "%b-%y", locale = "es"),
-      max.major.breaks = 20
-    ) +
-    scale_fill_manual(
-      name = "",
-      values = .paleta[1:2],  # Use two colors from your palette
-      labels = c("Volumen MLC", "Volumen USMEP")  # Customize labels
-    ) +
-    scale_color_manual(
-      name = "",
-      values = .paleta[2],
-      labels = "Compras BCRA"
-    ) +
-    labs(
-      title = "VOLUMEN MULC (DIVISA Y MEP TODOS LOS PLAZOS) Y COMPRAS BCRA",
-      subtitle = paste0("Compras destacada última. Datos al ", mulc %>% tail(n = 1) %>% pull(date)),
-      y = "",
-      x = "",
-      caption = paste0(.pie, " en base a BCRA")
-    )
+  )
 )
 
 
@@ -93,30 +95,32 @@ graf = mulc %>%
   mutate(resul = ifelse(comprasBCRA < 0, "Ventas", "Compras")) 
 graf$Fecha = graf$date
 g_mlc_comprasBCRA = suppressMessages(
-  graf %>% 
-    drop_na() %>% 
-    ggplot(aes(x=Fecha, y=comprasBCRA)) +
-    #mpt::theme_mpt() +
-    theme_outlier() +
-    geom_bar(stat = "identity", aes(fill = as.factor(resul))) +
-    
-    geom_smooth(se = F, show.legend = F) + 
-    #geom_vline(xintercept = as.Date("2023-12-10")) +
-    
-    scale_fill_manual(name = "", label = c("Compras", "Ventas"), values = .paleta) +
-    
-    scale_x_cont_dates(name = "", business.dates = graf$date, labels=label_date(format = "%b-%y", locale = "es"), max.major.breaks=20) +
-    #scale_x_date(date_breaks = "1 week", date_labels = "%d-%m") +
-    scale_y_continuous(labels = unit_format(unit = "M", style_negative = "parens", scale = 1e-6),
-                       name = "Millones de dólares",
-                       breaks = breaks_extended(8)) +
-    
-    labs(title = "Operación del BCRA en el MLC",
-         subtitle = paste0('Datos al ', mulc %>% tail(n=1) %>% pull(date)),
-         y = '',
-         x = '',
-         caption = paste0(.pie, " en base a BCRA")) +
-    theme(legend.position = "bottom")
+  suppressWarnings(
+    graf %>% 
+      drop_na() %>% 
+      ggplot(aes(x=Fecha, y=comprasBCRA)) +
+      #mpt::theme_mpt() +
+      theme_outlier() +
+      geom_bar(stat = "identity", aes(fill = as.factor(resul))) +
+      
+      geom_smooth(se = F, show.legend = F) + 
+      #geom_vline(xintercept = as.Date("2023-12-10")) +
+      
+      scale_fill_manual(name = "", label = c("Compras", "Ventas"), values = .paleta) +
+      
+      scale_x_cont_dates(name = "", business.dates = graf$date, labels=label_date(format = "%b-%y", locale = "es"), max.major.breaks=20) +
+      #scale_x_date(date_breaks = "1 week", date_labels = "%d-%m") +
+      scale_y_continuous(labels = unit_format(unit = "M", style_negative = "parens", scale = 1e-6),
+                         name = "Millones de dólares",
+                         breaks = breaks_extended(8)) +
+      
+      labs(title = "Operación del BCRA en el MLC",
+           subtitle = paste0('Datos al ', mulc %>% tail(n=1) %>% pull(date)),
+           y = '',
+           x = '',
+           caption = paste0(.pie, " en base a BCRA")) +
+      theme(legend.position = "bottom")
+  )
 )
 
 grabaGrafo(variable = g_mlc_comprasBCRA, path = path)
@@ -302,47 +306,51 @@ grabaGrafo(variable = g_mlc_demanda_mlc_acum, path = path)
 valores = mulc %>% 
   select(date, volumen, volumen_usmep) %>% tail(n=1) %>% pivot_longer(!date)
 g_mlc_volumen_divisa_mep = suppressMessages(
-  mulc %>% 
-    select(date, volumen, volumen_usmep) %>% 
-    pivot_longer(!date) %>%
-    ggplot(aes(x=date, y=value, color = name)) + 
-    theme_usado() +
-    geom_point(size = 0.75, show.legend = F) +
-    geom_point(data = valores, size = 4.5, show.legend = F) +
-    geom_smooth(se = F)  +
-    scale_y_continuous(name = "Volumen en Millones de USD", labels = label_comma(scale = 1/1e6, big.mark = ".", decimal.mark = ",")) +
-    scale_color_manual(name = "Plaza", values = .paleta, labels = c("Divisa", "MEP")) +
-    labs(title = "DIVISA Y MEP EN MULC",
-         subtitle = paste0('Últimos valores destacados. Datos al ', mulc %>% tail(n=1) %>% pull(date)),
-         y = '',
-         x = '',
-         caption = paste0(.pie, " en base a BCRA")) +
-    theme(legend.position = "bottom")
+  suppressWarnings(
+    mulc %>% 
+      select(date, volumen, volumen_usmep) %>% 
+      pivot_longer(!date) %>%
+      ggplot(aes(x=date, y=value, color = name)) + 
+      theme_usado() +
+      geom_point(size = 0.75, show.legend = F) +
+      geom_point(data = valores, size = 4.5, show.legend = F) +
+      geom_smooth(se = F)  +
+      scale_y_continuous(name = "Volumen en Millones de USD", labels = label_comma(scale = 1/1e6, big.mark = ".", decimal.mark = ",")) +
+      scale_color_manual(name = "Plaza", values = .paleta, labels = c("Divisa", "MEP")) +
+      labs(title = "DIVISA Y MEP EN MULC",
+           subtitle = paste0('Últimos valores destacados. Datos al ', mulc %>% tail(n=1) %>% pull(date)),
+           y = '',
+           x = '',
+           caption = paste0(.pie, " en base a BCRA")) +
+      theme(legend.position = "bottom")
+  )
 )
 grabaGrafo(variable = g_mlc_volumen_divisa_mep, path = path)
 
 ####
 # pctMEP
 g_mlc_pct_mep_mlc = suppressMessages(
-  mulc %>% 
-    mutate(pctMEP = volumen_usmep / (volumen + volumen_usmep)) %>% 
-    drop_na() %>% 
-    ggplot(aes(date, pctMEP)) +
-    theme_usado() +
-    geom_point(size=0.75) +
-    geom_smooth(se = F) +
-    scale_x_cont_dates(name = "", business.dates = mulc$date, labels=label_date(format = "%b-%y", locale = "es"), max.major.breaks=20) +
-    scale_y_continuous(name = "Porcentaje MEP",
-                       labels = label_percent()
-    ) +
-    #scale_x_continuous(breaks = seq(1,30, 1)) +
-    scale_fill_manual(name = "Mes", values = .paleta) +
-    labs(title = "MEP COMO PORCENTAJE DEL VOLUMEN TOTAL",
-         subtitle = paste0('Datos al ', mulc %>% tail(n=1) %>% pull(date)),
-         y = '',
-         x = '',
-         caption = paste0(.pie, " en base a BCRA")) +
-    theme(legend.position = "bottom")
+  suppressWarnings(
+    mulc %>% 
+      mutate(pctMEP = volumen_usmep / (volumen + volumen_usmep)) %>% 
+      drop_na() %>% 
+      ggplot(aes(date, pctMEP)) +
+      theme_usado() +
+      geom_point(size=0.75) +
+      geom_smooth(se = F) +
+      scale_x_cont_dates(name = "", business.dates = mulc$date, labels=label_date(format = "%b-%y", locale = "es"), max.major.breaks=20) +
+      scale_y_continuous(name = "Porcentaje MEP",
+                         labels = label_percent()
+      ) +
+      #scale_x_continuous(breaks = seq(1,30, 1)) +
+      scale_fill_manual(name = "Mes", values = .paleta) +
+      labs(title = "MEP COMO PORCENTAJE DEL VOLUMEN TOTAL",
+           subtitle = paste0('Datos al ', mulc %>% tail(n=1) %>% pull(date)),
+           y = '',
+           x = '',
+           caption = paste0(.pie, " en base a BCRA")) +
+      theme(legend.position = "bottom")
+  )
 )
 
 
@@ -350,30 +358,32 @@ grabaGrafo(variable = g_mlc_pct_mep_mlc, path = path)
 
 ##################################
 # DISTRIBUCION RUEDA MLC
-g_mlc_pct_areas_mlc = mulc %>% 
-  mutate(pctMEP =  (volumen_usmep / (volumen + volumen_usmep)),
-         pctDivisa =  (volumen / (volumen + volumen_usmep))) %>% 
-  
-  select(date, pctMEP, pctDivisa) %>%
-  pivot_longer(!date) %>% 
-  drop_na() %>% 
-  
-  ggplot(aes(x=date, y=value, fill = name)) +
-  theme_usado() +
-  geom_area(stat="identity") +
-  
-  scale_x_cont_dates(name = "", business.dates = mulc$date, labels=label_date(format = "%b-%y", locale = "es"), max.major.breaks=20) +
-  
-  scale_y_continuous(name = "Total MLC",
-                     labels = label_percent(),
-                     breaks_extended(10)) +
-  scale_fill_manual(name = NULL, values = .paleta, labels = c("% Divisa", "% MEP")) +
-  labs(title = "DISTRIBUCION DE LA RUEDA MLC",
-       subtitle = paste0('Datos al ', mulc %>% tail(n=1) %>% pull(date)),
-       y = '',
-       x = '',
-       caption = paste0(.pie, " en base a BCRA")) +
-  theme(legend.position = "bottom")
+g_mlc_pct_areas_mlc = suppressWarnings(
+  mulc %>% 
+    mutate(pctMEP =  (volumen_usmep / (volumen + volumen_usmep)),
+           pctDivisa =  (volumen / (volumen + volumen_usmep))) %>% 
+    
+    select(date, pctMEP, pctDivisa) %>%
+    pivot_longer(!date) %>% 
+    drop_na() %>% 
+    
+    ggplot(aes(x=date, y=value, fill = name)) +
+    theme_usado() +
+    geom_area(stat="identity") +
+    
+    scale_x_cont_dates(name = "", business.dates = mulc$date, labels=label_date(format = "%b-%y", locale = "es"), max.major.breaks=20) +
+    
+    scale_y_continuous(name = "Total MLC",
+                       labels = label_percent(),
+                       breaks_extended(10)) +
+    scale_fill_manual(name = NULL, values = .paleta, labels = c("% Divisa", "% MEP")) +
+    labs(title = "DISTRIBUCION DE LA RUEDA MLC",
+         subtitle = paste0('Datos al ', mulc %>% tail(n=1) %>% pull(date)),
+         y = '',
+         x = '',
+         caption = paste0(.pie, " en base a BCRA")) +
+    theme(legend.position = "bottom")
+)
 
 
 grabaGrafo(variable = g_mlc_pct_areas_mlc, path = path)
