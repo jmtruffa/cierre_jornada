@@ -92,7 +92,7 @@ tabla_fx = set %>%
     
   ) %>% 
   select(-(ends_with("_lagged"))) %>% 
-  left_join(diaria, by = "date") %>% 
+  left_join(diaria, by = join_by(date, mepAL, mepGD, cclGD, Canje, ccl, A3500, last_mlc)) %>% 
   relocate(date, mepAL, varD_mepAL, varS_mepAL, mepGD, varD_mepGD, varS_mepGD, cclGD, varD_cclGD, varS_cclGD, ccl, varD_ccl, varS_ccl, Canje, A3500, varD_A3500, varS_A3500, last_mlc, varD_last_mlc, varS_last_mlc) %>% 
   mutate(Canje = Canje * 100) %>% 
   tail(n=15) %>% 
