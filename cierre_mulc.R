@@ -141,12 +141,12 @@ g_mlc_tablaMLC = serieCal(from = min(vol_mulc$date), to = max(vol_mulc$date), se
   left_join(compras_bcra, by = "date") %>% 
   filter(date>="2023-12-01") %>% 
   group_by(`Año` = year(date), Mes = month(date)) %>% 
-  summarise(`Compras BCRA` = sum(comprasBCRA) / 1e6,
-            `Volumen Divisa` = sum(volumen) / 1e6,
-            `Volumen MEP` = sum(volumen_usmep) / 1e6,
-            `Prom Dia Compras` = mean(comprasBCRA) / 1e6 ,
-            `Prom Dia Volumen` = mean(volumen) / 1e6,
-            `Prom Día MEP` = mean(volumen_usmep) / 1e6
+  summarise(`Compras BCRA` = sum(comprasBCRA, na.rm = T) / 1e6,
+            `Volumen Divisa` = sum(volumen, na.rm = T) / 1e6,
+            `Volumen MEP` = sum(volumen_usmep, na.rm = T) / 1e6,
+            `Prom Dia Compras` = mean(comprasBCRA, na.rm = T) / 1e6 ,
+            `Prom Dia Volumen` = mean(volumen, na.rm = T) / 1e6,
+            `Prom Día MEP` = mean(volumen_usmep, na.rm = T) / 1e6
   , .groups = "drop") %>% 
   flextable::flextable() %>% 
   flextable::footnote(i = 1, 

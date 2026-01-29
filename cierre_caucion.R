@@ -22,7 +22,7 @@ g_caucion = cauciones_filtrado %>%
   
   scale_color_manual(name = NULL, values = c(.paleta[2], .paleta[1], .paleta[3]), labels = c("Cierre", "Máximo", "VWAP")) +
   scale_y_continuous(labels = label_percent(), breaks = breaks_extended(10)) +
-  scale_x_date(date_breaks = "1 month", labels = label_date(format = "%b-%y", locale = "es")) +
+  scale_x_date(date_breaks = "2 month", labels = label_date(format = "%b-%y", locale = "es")) +
   
   labs(title = "CAUCION OVERNIGHT",
        subtitle = paste0("Data al: ", tail(cauciones_filtrado, n=1) %>% pull(date)),
@@ -55,7 +55,7 @@ g_caucion_dolar = cauciones_filtrado_usd %>%
   
   scale_color_manual(name = NULL, values = c(.paleta[2], .paleta[1], .paleta[3]), labels = c("Cierre", "Máximo", "VWAP")) +
   scale_y_continuous(labels = label_percent(), breaks = breaks_extended(10)) +
-  scale_x_date(date_breaks = "1 month", labels = label_date(format = "%b-%y", locale = "es")) +
+  scale_x_date(date_breaks = "2 month", labels = label_date(format = "%b-%y", locale = "es")) +
   
   labs(title = "CAUCION OVERNIGHT (USD)",
        subtitle = paste0("Data al: ", tail(cauciones_filtrado_usd, n=1) %>% pull(date)),
@@ -126,7 +126,7 @@ g_caucion_usd_canje = serie %>%
   
   scale_color_manual(name = NULL, values = c(.paleta[2], .paleta[1], .paleta[3]), labels = c("Canje", "VWAP", "VWAP")) +
   scale_y_continuous(labels = label_percent(), breaks = breaks_extended(10)) +
-  scale_x_date(date_breaks = "1 month", labels = label_date(format = "%b-%y", locale = "es")) +
+  scale_x_date(date_breaks = "2 month", labels = label_date(format = "%b-%y", locale = "es")) +
   
   labs(title = "CAUCION OVERNIGHT (USD) Y CANJE",
        subtitle = paste0("Data al: ", tail(cauciones_filtrado_usd, n=1) %>% pull(date)),

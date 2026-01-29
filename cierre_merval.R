@@ -106,14 +106,14 @@ g_merval_ytd = merval %>%
   geom_text_repel(data = valores[valores$ytd < 0,] , nudge_y = -0.01) +
   # Add vertical lines at the end of each year
   geom_vline(
-    xintercept = as.Date(paste0(2010:2024, "-12-31")),
+    xintercept = as.Date(paste0(2010:year(Sys.Date()), "-12-31")),
     color = "gray70",
     linetype = "dashed",
     alpha = 0.5
   ) +
   # Optional: Add small ticks below the x-axis
   scale_x_date(
-    breaks = as.Date(paste0(2010:2024, "-12-31")),
+    breaks = as.Date(paste0(2010:year(Sys.Date()), "-12-31")),
     date_minor_breaks = "1 year",
     expand = expansion(mult = c(0.02, 0.05))
   ) +

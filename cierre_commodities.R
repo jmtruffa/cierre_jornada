@@ -61,7 +61,7 @@ g_commodities = futures_prices %>%
     geom_line(linewidth = 1) +
     #ggrepel::geom_text_repel(data = valores, show.legend = F, nudge_x = 10) +
     scale_y_continuous(breaks = breaks_extended(10)) +
-    scale_x_date(date_breaks = "3 month", labels = label_date(format = "%b-%y", locale = "es")) +
+    scale_x_date(date_breaks = "4 month", labels = label_date(format = "%b-%y", locale = "es")) +
   scale_color_manual(values = .paleta) +
     labs(title = "MAIZ - SOJA - WTI",
          subtitle = paste0("En base a futuros próximo mes. Data al: ", tail(futures_offset, n=1) %>% pull(date)),

@@ -10,6 +10,7 @@ curvaAR = function(from = "2020-09-15", to = Sys.Date(), comi = 0.0) {
     'AL35D',
     'AE38D',
     'AL41D',
+    'AN29D',
     'GD29D',
     'GD30D',
     'GD35D',
@@ -130,7 +131,7 @@ hist_YTM_sob = suppressWarnings(
     theme_usado() +
     geom_point() +
     scale_y_continuous(breaks = breaks_extended(10), labels = scales::percent) +
-    scale_x_date(date_breaks = "1 months", date_labels = "%b\n%Y") +
+    scale_x_date(date_breaks = "2 months", date_labels = "%b\n%Y") +
     labs(title = paste0("TIR SOBERANOS"),
          subtitle = paste0("Último dato: ", max(globales$date)),
          x = '',

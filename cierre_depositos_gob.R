@@ -23,6 +23,7 @@ depos = functions::dbExecuteQuery(query = query,
 g_depos_gobierno = depos %>% 
   ggplot(aes(x=date, y=depospesos)) +
   theme_usado() +
+  geom_line(aes(color = .paleta[1])) +
   geom_col(fill = .paleta[1]) +
   labs(title = "DEPOSITOS DEL GOBIERNO",
        subtitle = paste0("Información al ", max(depos$date)),
