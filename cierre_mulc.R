@@ -167,12 +167,12 @@ g_mlc_compras_semana_mulc = serieCal(from = min(vol_mulc$date), to = max(vol_mul
   left_join(vol_mulc, by = "date") %>%  
   left_join(compras_bcra, by = "date") %>% 
   filter(date >= lubridate::floor_date(Sys.Date(), unit="week") +1) %>% 
-  summarise(`Compras BCRA` = sum(comprasBCRA) / 1e6,
-            `Volumen Divisa` = sum(volumen) / 1e6,
-            `Volumen MEP` = sum(volumen_usmep) / 1e6,
-            `Prom Dia Compras` = mean(comprasBCRA) / 1e6,
-            `Prom Dia Volumen` = mean(volumen) / 1e6,
-            `Prom Día MEP` = mean(volumen_usmep) / 1e6
+  summarise(`Compras BCRA` = sum(comprasBCRA, na.rm = T) / 1e6,
+            `Volumen Divisa` = sum(volumen, na.rm = T) / 1e6,
+            `Volumen MEP` = sum(volumen_usmep, na.rm = T) / 1e6,
+            `Prom Dia Compras` = mean(comprasBCRA, na.rm = T) / 1e6,
+            `Prom Dia Volumen` = mean(volumen, na.rm = T) / 1e6,
+            `Prom Día MEP` = mean(volumen_usmep, na.rm = T) / 1e6
   , .groups = "drop") %>% 
   flextable::flextable() %>% 
   flextable::footnote(i = 1, 
