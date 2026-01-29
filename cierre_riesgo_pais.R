@@ -94,13 +94,27 @@ g_riesgopais = rp %>%
 
 grabaGrafo(name = "g_riesgo_pais", variable = g_riesgopais, path = path)
 
-valores_ytd = rp %>% filter(date >= "2019-12-10") %>% filter(
-                                                             date == "2025-04-08" |
-                                                             date == max(date)) %>% filter(date >= "2025-01-01")
+fecha_max <- max(rp$date, na.rm = TRUE)
+fecha_inicio <- as.Date(sprintf("%d-12-31", lubridate::year(fecha_max) - 1))
+if (lubridate::time_length(lubridate::interval(fecha_inicio, fecha_max), "months") < 5) {
+  fecha_inicio <- as.Date(sprintf("%d-12-31", lubridate::year(fecha_max) - 2))
+}
+
+valores_ytd = rp %>%
+  filter(date >= "2019-12-10") %>%
+  filter(
+    date == "2025-04-08" |
+    date == "2025-09-18" |
+    date == "2025-09-30" |
+    date == "2025-10-22" |
+    date == "2025-12-31" |
+    date == max(date)
+  ) %>%
+  filter(date >= fecha_inicio)
 
 
 g_riesgopais_ytd = rp %>% 
-  filter(date >= "2025-01-01") %>% 
+  filter(date >= fecha_inicio) %>% 
   ggplot(aes(x=date, y=Argentina, label = sprintf("%.0f",Argentina))) +
   geom_line(linewidth = 1, color = .paleta[1]) +
   
@@ -112,7 +126,7 @@ g_riesgopais_ytd = rp %>%
   #geom_vline(xintercept = as.Date("2024-07-15"), linetype = "dashed")
   
   scale_y_continuous(breaks = breaks_extended(8)) +
-  scale_x_date(date_breaks="2 weeks", date_labels="%d - %b\n %Y",
+  scale_x_date(date_breaks="3 weeks", date_labels="%d - %b\n %Y",
                expand = c(0.05,0)) +
   
   labs(title = "RIESGO PAIS ARGENTINA",
