@@ -186,123 +186,139 @@ g_mlc_compras_semana_mulc = serieCal(from = min(vol_mulc$date), to = max(vol_mul
   font(fontname = "MS Sans Serif", part = "header") %>% 
   bg(bg = "white", part = "all")
   
+suppressMessages(
 grabaTabla2(variable = g_mlc_compras_semana_mulc, path = path)
-
+)
 
 ######################################################################
 # DEMANDA PUNTUAL
 
-ultimo_dia_fila = mulc %>% 
+fecha_max <- max(mulc$date, na.rm = TRUE)
+fecha_inicio <- floor_date(fecha_max, "month") %m-% months(11)   # ej: si max es 2026-01 -> 2025-02-01
+
+niveles_meses <- c(month(fecha_inicio):12, 1:month(fecha_max))   # ej: 2:12,1
+ultimo_dia_fila <- mulc %>% 
   mutate(demanda = volumen - comprasBCRA) %>% 
-  filter(date >= "2024-11-01") %>% 
+  filter(date >= fecha_inicio) %>% 
   group_by(mes = month(date)) %>% 
-  mutate(fila = row_number()) %>% tail(n=1) %>% pull(fila)
+  mutate(fila = row_number()) %>% 
+  tail(n = 1) %>% 
+  pull(fila)
 
-g_mlc_demanda_mlc_puntual = suppressWarnings(
-  mulc %>% 
-    mutate(demanda = volumen - comprasBCRA) %>% 
-    filter(date >= "2024-11-01") %>% 
-    group_by(mes = month(date)) %>% 
-    mutate(fila = row_number()) %>% 
-    mutate(mes = factor(mes, levels = c(11:12, 1:10))) %>% 
-    
-    ggplot(aes(x = fila, y = demanda, group = mes)) +
-    theme_usado() +
-    geom_col(aes(fill = as.factor(mes)), width = 0.5, position = position_dodge(width = 0.6)) +
-    scale_y_continuous(name = "Millones USD",
-                       labels = label_comma(scale = 1/1e6, big.mark = ".", decimal.mark = ","),
-                       breaks_extended(10)) +
-    scale_x_continuous(breaks = seq(1, 30, 1)) +
-    scale_fill_manual(name = "Mes", values = colorRampPalette(.paleta)(12)) +
-    labs(title = "DEMANDA PRIVADA DIARIA MULC (DIVISA TODOS LOS PLAZOS)",
-         subtitle = paste0('VOLUMEN - COMPRAS BCRA. Datos al ', mulc %>% tail(n=1) %>% pull(date)),
-         y = '',
-         x = '',
-         caption = paste0(.pie, " en base a BCRA")) +
-    theme(legend.position = "bottom",
-          axis.text.x = element_text(size = ifelse(seq(1, 30) == ultimo_dia_fila, 14, 10), color = ifelse(seq(1, 30) == ultimo_dia_fila, "red", "black")))
-)
+g_mlc_demanda_mlc_puntual <- mulc %>% 
+  mutate(demanda = volumen - comprasBCRA) %>% 
+  filter(date >= fecha_inicio) %>% 
+  group_by(mes = month(date)) %>% 
+  mutate(fila = row_number()) %>% 
+  mutate(mes = factor(mes, levels = niveles_meses)) %>% 
+  ggplot(aes(x = fila, y = demanda, group = mes)) +
+  theme_usado() +
+  geom_col(aes(fill = as.factor(mes)), width = 0.5, position = position_dodge(width = 0.6)) +
+  scale_y_continuous(
+    name = "Millones USD",
+    labels = label_comma(scale = 1/1e6, big.mark = ".", decimal.mark = ","),
+    breaks_extended(10)
+  ) +
+  scale_x_continuous(breaks = seq(1, 30, 1)) +
+  scale_fill_manual(name = "Mes", values = colorRampPalette(.paleta)(12)) +
+  labs(
+    title = "DEMANDA PRIVADA DIARIA MULC (DIVISA TODOS LOS PLAZOS)",
+    subtitle = paste0("VOLUMEN - COMPRAS BCRA. Datos al ", fecha_max),
+    y = "",
+    x = "",
+    caption = paste0(.pie, " en base a BCRA")
+  ) +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(
+      size = ifelse(seq(1, 30) == ultimo_dia_fila, 14, 10),
+      color = ifelse(seq(1, 30) == ultimo_dia_fila, "red", "black")
+    )
+  )
 
+suppressMessages(
 grabaGrafo(variable = g_mlc_demanda_mlc_puntual, path = path)
+)
 
 ######################################################################
 # DEMANDA ACUMULADA COMPARADA POR RUEDAS
 # NUEVO FORMATO
-suppressWarnings(Sys.setlocale("LC_TIME", "es_ES.UTF-8"))
-meses_es <- c("Jul", "Ago", "Sep", "Oct", "Nov", "Dic", "Ene", "Feb", "Mar", "Abr")
+fecha_max <- max(mulc$date, na.rm = TRUE)
+fecha_inicio <- floor_date(fecha_max, "month") %m-% months(12)
 
-mulc_prepared <- mulc %>% 
-  mutate(demanda = volumen - comprasBCRA) %>% 
-  filter(date >= "2025-01-01") %>% 
-  mutate(mes_num = month(date)) %>% 
-  group_by(mes_num) %>% 
-  arrange(date) %>% 
-  mutate(fila = row_number(),
-         demandaAc = cumsum(demanda)) %>% 
-  ungroup() %>% 
-  mutate(mes = factor(mes_num, levels = c(1:10), labels = meses_es))  # Asigna etiquetas de mes en español
+meses_es <- c("Ene", "Feb", "Mar", "Abr", "May", "Jun",
+              "Jul", "Ago", "Sep", "Oct", "Nov", "Dic")
 
-labels_df <- mulc_prepared %>% 
-  group_by(mes_num) %>% 
-  filter(fila == max(fila)) %>% 
+mulc_prepared <- mulc %>%
+  filter(date >= fecha_inicio) %>%
+  mutate(
+    demanda = volumen - comprasBCRA,
+    ym = floor_date(date, "month")
+  ) %>%
+  group_by(ym) %>%
+  arrange(date, .by_group = TRUE) %>%
+  mutate(
+    fila = row_number(),
+    demandaAc = cumsum(demanda)
+  ) %>%
+  ungroup() %>%
+  mutate(
+    mes_lbl = paste0(meses_es[month(ym)], "-", substr(year(ym), 3, 4)),
+    mes_lbl = factor(mes_lbl, levels = unique(mes_lbl[order(ym)]))
+  )
+
+labels_df <- mulc_prepared %>%
+  group_by(mes_lbl) %>%
+  filter(fila == max(fila)) %>%
   ungroup()
+
+n_meses <- nlevels(mulc_prepared$mes_lbl)
 
 g_mlc_demanda_mlc_acum = suppressMessages(
   suppressWarnings(
-    mulc_prepared %>% 
-      ggplot(aes(x = fila, y = demandaAc, group = mes, color = mes)) +
-      
+    mulc_prepared %>%
+      ggplot(aes(x = fila, y = demandaAc, group = mes_lbl, color = mes_lbl)) +
       theme_usado() +
-      
       geom_line(linewidth = 1) +
-      
       geom_point(size = 1) +
-      
-      geom_text_repel(
+      ggrepel::geom_text_repel(
         data = labels_df,
-        aes(label = mes),
-        nudge_x = 0.5,      # Ajusta según sea necesario
-        nudge_y = 0.5,      # Ajusta según sea necesario
+        aes(label = mes_lbl),
+        nudge_x = 0.5,
+        nudge_y = 0.5,
         size = 4,
         color = "black",
         show.legend = FALSE
       ) +
-      
-      scale_color_manual(name = "Mes", values = colorRampPalette(.paleta)(12)) +  
-      
+      scale_color_manual(name = "Mes", values = colorRampPalette(.paleta)(n_meses)) +
       scale_y_continuous(
         name = "Millones USD",
         labels = label_comma(scale = 1/1e6, big.mark = ".", decimal.mark = ","),
         breaks = breaks_extended(10)
       ) +
-      
       scale_x_continuous(
         breaks = seq(1, 30, 1)
       ) +
-      
       labs(
         title = "DEMANDA ACUMULADA MULC (DIVISA TODOS LOS PLAZOS)",
-        subtitle = paste0('VOLUMEN - COMPRAS BCRA. Datos al ', max(mulc$date)),
-        y = '',
-        x = 'Ruedas de cada mes',
+        subtitle = paste0("VOLUMEN - COMPRAS BCRA. Datos al ", fecha_max),
+        y = "",
+        x = "Ruedas de cada mes",
         caption = paste0(.pie, " en base a BCRA")
       ) +
-      
       theme(
         legend.position = "bottom",
         axis.text.x = element_text(
-          size = 10, 
+          size = 10,
           color = "black"
         )
       ) +
-      
       guides(
         color = guide_legend(nrow = 1, title = "Mes")
       )
   )
 )
 
-suppressWarnings(Sys.setlocale("LC_TIME", "en_US.UTF-8"))
 grabaGrafo(variable = g_mlc_demanda_mlc_acum, path = path)
 
 ######################################################################
