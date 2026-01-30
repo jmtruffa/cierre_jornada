@@ -14,7 +14,7 @@ WHERE b.ticker LIKE 'TZX%'
 instrumentos <- as_tibble(
   functions::dbExecuteQuery(query = query, server = server, port = port)
 ) %>% janitor::clean_names()
-instrumentos$issue_date = as.Date(instrumentos$issue_date)
+#instrumentos$issue_date = as.Date(instrumentos$issue_date)
 
 
 cer_nuevo = extend_CER(c(.017,.015,.0179, 0.017,.048, rep(0.0155, 10)), server = server, port = port)
