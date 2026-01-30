@@ -1,6 +1,8 @@
 reservas = bcra::getDatosVariable(idVariable = 1, desde = "2020-01-01", hasta = Sys.Date())
 # traigo los valores scrapeados de reservas que vienen del twitter del bcra
 res = functions::dbGetTable(table = "reservas_scrape", server = server, port = port)
+res$date = as.Date(res$date)
+
 
 reservas = bind_rows(
   reservas,                              
