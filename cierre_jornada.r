@@ -261,6 +261,7 @@ safe_render(
 # que están en la carpeta /cierre-jornada
 gsutil_args <- c(
   "rsync",
+  "-m",
   "-d",
   "-r",
   paste0(path, "/"),
