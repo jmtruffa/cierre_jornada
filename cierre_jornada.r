@@ -75,14 +75,14 @@ safe_render <- function(...) {
 }
 
 # capturamos el primer argumento del llamado para ver si corre actualizando la base
-# args = commandArgs(trailingOnly = TRUE)
-# if (length(args) == 0) {
-#   update <- FALSE
-# } else if (tolower(args[1]) %in% c("true", "false")) {
-#   update <- as.logical(tolower(args[1]))
-# } else {
-#   update <- FALSE
-# }
+args = commandArgs(trailingOnly = TRUE)
+if (length(args) == 0) {
+  update <- FALSE
+} else if (tolower(args[1]) %in% c("true", "false")) {
+  update <- as.logical(tolower(args[1]))
+} else {
+  update <- FALSE
+}
 setwd("/home/jmt/dev/r/outlier/cierre_jornada")
 functions::setup(server = "GC")
 suppressWarnings(invisible(outlier::theme_outlier()))
