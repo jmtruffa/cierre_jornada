@@ -1,18 +1,19 @@
-# Leer un archivo JSON local
-data <- fromJSON("/home/jmt/procesos/yields/bonds.json", simplifyVector = FALSE)
+query = "
+SELECT
+  b.id,
+  b.ticker,
+  b.issue_date,
+  b.maturity,
+  b.coupon,
+  b.index_type_id AS index,
+  b.offset
+FROM bonds b
+WHERE b.ticker LIKE 'TZX%'
+"
 
-instrumentos <- lapply(data, function(x) {
-  data.frame(
-    ID        = x$ID,
-    Ticker    = x$Ticker,
-    IssueDate = x$IssueDate,
-    Maturity  = x$Maturity,
-    Coupon    = x$Coupon,
-    Index     = x$Index,
-    Offset    = x$Offset,
-    stringsAsFactors = FALSE
-  )
-}) |> bind_rows() %>% janitor::clean_names()
+instrumentos <- as_tibble(
+  functions::dbExecuteQuery(query = query, server = server, port = port)
+) %>% janitor::clean_names()
 instrumentos$issue_date = as.Date(instrumentos$issue_date)
 
 

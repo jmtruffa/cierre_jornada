@@ -174,7 +174,7 @@ g_boncer_dinamica = boncer_dinamica %>%
     geom_point()+
     scale_x_date(date_breaks = "2 month", labels = date_format("%d-%b-%Y", locale = "es"),
                  expand = c(0.07,0.0)) +    
-    scale_y_continuous(breaks = breaks_extended(10), labels = scales::percent) + 
+    scale_y_continuous(breaks = breaks_extended(10), labels = scales::percent,  limits=c(-.05,0.40)) + 
                        
     labs(title = "CURVA REAL CER",
          subtitle = paste0('Último dato: ', tail(boncer_dinamica, n = 1) %>% pull(date)),
