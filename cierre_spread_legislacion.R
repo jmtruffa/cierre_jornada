@@ -1,3 +1,7 @@
+log_info <- function(msg) {
+  cat(sprintf("[%s] %s", format(Sys.time(), "%F %T"), msg), "\n")
+}
+
 # Define the bond pairs
 bond_pairs = tibble(
   bond1 = c("GD41D", "GD30D", "GD35D", "GD38D"),
@@ -7,6 +11,11 @@ bond_pairs = tibble(
 
 # PPI login
 methodsPPI::getPPILogin()
+log_info(sprintf("token exists: %s", exists("token")))
+if (exists("token")) {
+  log_info(sprintf("token names: %s", paste(names(token), collapse = ", ")))
+}
+log_info(sprintf("settlement exists: %s", exists("settlement")))
 
 calculate_and_plot_spread <- function(pair, prices) {
   bond1 <- pair[["bond1"]]
@@ -20,6 +29,8 @@ calculate_and_plot_spread <- function(pair, prices) {
       spreadTXT = paste0(format(round(spread * 100, 2), nsmall = 2), "%")
     ) %>% 
     drop_na()
+  
+  log_info(sprintf("spread rows %s-%s: %d", bond1, bond2, nrow(spread)))
   
   plot <- spread %>%
     ggplot(aes(x = date, y = spread, label = spreadTXT)) +
@@ -50,11 +61,23 @@ prices <- getPPIPriceHistoryMultiple3(
   to = Sys.Date(),
   settlement = settlement
 )
+log_info(sprintf("prices is list: %s length: %d", is.list(prices), length(prices)))
+if (is.list(prices) && length(prices) >= 1 && !is.null(prices[[1]])) {
+  log_info(sprintf("prices[[1]] rows: %d", nrow(prices[[1]])))
+}
 # Check for fails
 # prices
 
 # Keep prices dataframe
 prices <- prices[[1]]
+if (is.null(prices) || nrow(prices) == 0) {
+  log_info("prices dataframe vacío: no hay datos para graficar")
+} else {
+  log_info(sprintf("prices date range: %s - %s",
+                   min(prices$date, na.rm = TRUE),
+                   max(prices$date, na.rm = TRUE)))
+  log_info(sprintf("prices NA: %d", sum(is.na(prices$price))))
+}
 
 # Iterate over bond pairs and generate spreads and plots
 plots <- bond_pairs %>%
