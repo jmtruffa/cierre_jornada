@@ -2,7 +2,7 @@ library(functions)
 
 # Config origen
 source_server <- "medina"
-source_port <- 11445
+source_port <- 12259
 
 # Config destino
 dest_server <- "localhost"
@@ -20,7 +20,7 @@ tablas <- c(
   "ccl",
   "comprasMULCBCRA",
   "datos_infla_be",
-  "forex",
+  "forex2",
   "historical_prices",
   "historico_bopreales",
   "historico_lecaps",
@@ -51,13 +51,19 @@ tablas <- c(
 
 for (nombre_tabla in tablas) {
   message(sprintf("Migrando tabla: %s", nombre_tabla))
-
+  
   tabla <- dbGetTable(
     table = nombre_tabla,
     server = source_server,
-    port = source_port
+    port = source_port,
+    user = "readonly_user",
+    password = "solo_lee"
   )
-
+  
+  if (nombre_tabla == "forex2") {
+    nombre_tabla = "forex"
+  }
+  
   dbWriteDF(
     table = nombre_tabla,
     df = tabla,

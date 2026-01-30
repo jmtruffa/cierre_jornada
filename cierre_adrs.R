@@ -1,22 +1,12 @@
 varADR = function(tickers, date2) {
 
   # Create or use an existing calendar with known holidays
+  cal_usa = dbGetTable("calendario_feriados_usa", server = server, port = port)
   bizdays::create.calendar(name = "MyCalendar", 
                            start.date = as.Date(date2) %m-% months(13), 
                            end.date = as.Date(date2),
                            weekdays = c("saturday", "sunday"), 
-                           holidays = c(as.Date("2024-09-02"),
-                                        as.Date("2024-12-25"),
-                                        as.Date("2025-01-01"),
-                                        as.Date("2025-01-09"),
-                                        as.Date("2025-01-20"),
-                                        as.Date("2025-02-17"),
-                                        as.Date("2025-04-18"),
-                                        as.Date("2025-05-26"),
-                                        as.Date("2025-06-19"),
-                                        as.Date("2025-07-04"),
-                                        as.Date("2025-09-01")
-                                        ))
+                           holidays = as.Date(cal_usa$date))
    
   # Convert date2 to Date object
   date2 = as.Date(date2)
@@ -116,7 +106,8 @@ g_tablaADRs <- flextable(datos_tabla_ADR,
   add_header_lines("Tabla de Selección de ADRs Argentinos") %>% 
   # Align footer to right
   align(align="right", part = "footer") %>% 
-  hline(i = 14, border = officer::fp_border(color = "black", style = "solid", width = 1), part = "body")  
+  hline(i = 14, border = fp_border(color = "black", style = "solid", width = 1), part = "body")  
+  #hline(i = 14, border = officer::fp_border(color = "black", style = "solid", width = 1), part = "body")  
   #bg(part = "all", bg = "white")
 
 
