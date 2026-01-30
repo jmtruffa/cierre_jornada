@@ -13,7 +13,7 @@ rofexOI = rbind(rofexH, rofex::getRofexPosition(from = newDate, to = adjust.prev
 # rofexOI %>% group_by(date) %>% summarise(cotizaciones = n()) %>% tail(n=10)
 
 # si cantidad cotizaciones de hoy < 10 o NULL entonces stop
-if (nrow(rofexOI) == 0 | nrow(rofexOI %>% filter(date == Sys.Date())) < 10) {
+if (nrow(rofexOI) == 0 || nrow(rofexOI %>% filter(date == Sys.Date())) < 10) {
   stop("No hay cotizaciones para hoy")
 }
 # Grabamos lo actualizado en la tabla
@@ -151,22 +151,39 @@ grabaGrafo(variable = g_rofex_distro_int_abierto, path = path)
 
 ##################
 # Volumen comparado entre ruedas de cada mes.
-ultimo_dia_fila = vol %>%  
-  filter(date >= "2024-08-01") %>% 
-  group_by(mes = month(date)) %>% 
-  mutate(fila = row_number()) %>% tail(n=1) %>% pull(fila)
+fecha_max <- max(vol$date, na.rm = TRUE)
+fecha_inicio <- fecha_max %m-% months(12)
 
-g_rofex_vol_comparado = vol %>% 
-  filter(date>="2024-08-01") %>% 
-  group_by(mes = month(date)) %>% 
-  mutate(fila = row_number()) %>% mutate(volAc = cumsum(vol)) %>% 
-  mutate(mes = factor(mes, levels = c(8:12, 1:7))) %>% 
-  ggplot(aes(x=fila, y=vol, group = mes)) +
+vol_12m <- vol %>%
+  filter(date >= fecha_inicio) %>%
+  mutate(ym = floor_date(date, "month")) %>%
+  group_by(ym) %>%
+  arrange(date, .by_group = TRUE) %>%
+  mutate(
+    fila = row_number(),
+    volAc = cumsum(vol)
+  ) %>%
+  ungroup() %>%
+  mutate(
+    mes_lbl = paste0(month(date, label = TRUE, abbr = TRUE), "-", substr(year(date), 3, 4)),
+    mes_lbl = factor(mes_lbl, levels = unique(mes_lbl[order(ym)]))
+  )
+
+ultimo_dia_fila <- vol_12m %>%
+  group_by(ym) %>%
+  filter(fila == max(fila)) %>%
+  ungroup() %>%
+  tail(n = 1) %>%
+  pull(fila)
+
+max_fila <- max(vol_12m$fila, na.rm = TRUE)
+
+g_rofex_vol_comparado = vol_12m %>% 
+  ggplot(aes(x = fila, y = vol, group = mes_lbl)) +
   theme_usado() +
-  geom_col(aes(fill = as.factor(mes)), width = 0.5, position = position_dodge(width = 0.6)) +
-  scale_x_continuous(breaks = seq(1,30, 1)) +
-  scale_fill_manual(name = "Mes", values = colorRampPalette(.paleta)(12)) +
-  #scale_fill_manual(name = "Mes", values = .paleta) +
+  geom_col(aes(fill = mes_lbl), width = 0.5, position = position_dodge(width = 0.6)) +
+  scale_x_continuous(breaks = seq(1, max_fila, 1)) +
+  scale_fill_manual(name = "Mes", values = colorRampPalette(.paleta)(nlevels(vol_12m$mes_lbl))) +
   scale_y_continuous(breaks = breaks_extended(10), labels = label_comma(big.mark = ".", decimal.mark = ",")) +
   labs(title = "VOLUMEN OPERADO COMPARADO POR RUEDA FUTUROS DLR",
        subtitle = 'Diario. Todas las posiciones',
@@ -174,23 +191,18 @@ g_rofex_vol_comparado = vol %>%
        x = 'Número de rueda del mes',
        caption = paste0(.pie, " en base a datos de A3")) +
   theme(
-    axis.text.x = element_text(size = ifelse(seq(1, 30) == ultimo_dia_fila, 14, 10), color = ifelse(seq(1, 30) == ultimo_dia_fila, "red", "black"))
+    axis.text.x = element_text(size = ifelse(seq(1, max_fila) == ultimo_dia_fila, 14, 10), color = ifelse(seq(1, max_fila) == ultimo_dia_fila, "red", "black"))
   )
 
 grabaGrafo(variable = g_rofex_vol_comparado, path = path)
 
 
-g_rofex_vol_comparado_acum = vol %>% 
-  filter(date>="2024-08-01") %>% 
-  group_by(mes = month(date)) %>% 
-  mutate(fila = row_number()) %>% mutate(volAc = cumsum(vol)) %>% 
-  mutate(mes = factor(mes, levels = c(8:12, 1:7))) %>% 
-  ggplot(aes(x=fila, y=volAc, group = mes)) +
+g_rofex_vol_comparado_acum = vol_12m %>% 
+  ggplot(aes(x = fila, y = volAc, group = mes_lbl)) +
   theme_usado() +
-  geom_col(aes(fill = as.factor(mes)), width = 0.5, position = position_dodge(width = 0.6)) +
-  scale_x_continuous(breaks = seq(1,30, 1)) +
-  scale_fill_manual(name = "Mes", values = colorRampPalette(.paleta)(12)) +
-  #scale_fill_manual(name = "Mes", values = .paleta) +
+  geom_col(aes(fill = mes_lbl), width = 0.5, position = position_dodge(width = 0.6)) +
+  scale_x_continuous(breaks = seq(1, max_fila, 1)) +
+  scale_fill_manual(name = "Mes", values = colorRampPalette(.paleta)(nlevels(vol_12m$mes_lbl))) +
   scale_y_continuous(breaks = breaks_extended(10), labels = label_comma(big.mark = ".", decimal.mark = ",")) +
   labs(title = "VOLUMEN OPERADO ACUMULADO COMPARADO POR RUEDA FUTUROS DLR",
        subtitle = 'Diario. Todas las posiciones',
@@ -198,7 +210,7 @@ g_rofex_vol_comparado_acum = vol %>%
        x = 'Número de rueda del mes',
        caption = paste0(.pie, " en base a datos de A3")) +
   theme(
-    axis.text.x = element_text(size = ifelse(seq(1, 30) == ultimo_dia_fila, 14, 10), color = ifelse(seq(1, 30) == ultimo_dia_fila, "red", "black"))
+    axis.text.x = element_text(size = ifelse(seq(1, max_fila) == ultimo_dia_fila, 14, 10), color = ifelse(seq(1, max_fila) == ultimo_dia_fila, "red", "black"))
   )
 
 grabaGrafo(variable = g_rofex_vol_comparado_acum, path = path)
@@ -350,6 +362,6 @@ g_rofex_teas_historico = rofexOI %>%
   labs(color = "Posiciones") +
   
   scale_y_continuous(breaks = breaks_extended(10), labels = label_percent(big.mark = ".", decimal.mark = ",")) +
-  scale_x_date(date_breaks = "4 weeks",  label = scales::label_date("%d-%b\n%Y", locale = "es")) 
+  scale_x_date(date_breaks = "2 months",  label = scales::label_date("%d-%b\n%Y", locale = "es")) 
 
 grabaGrafo(variable = g_rofex_teas_historico, path = path)

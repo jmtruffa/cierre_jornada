@@ -126,7 +126,7 @@ g_riesgopais_ytd = rp %>%
   #geom_vline(xintercept = as.Date("2024-07-15"), linetype = "dashed")
   
   scale_y_continuous(breaks = breaks_extended(8)) +
-  scale_x_date(date_breaks="3 weeks", date_labels="%d - %b\n %Y",
+  scale_x_date(date_breaks="1 month", date_labels="%b\n %Y",
                expand = c(0.05,0)) +
   
   labs(title = "RIESGO PAIS ARGENTINA",
