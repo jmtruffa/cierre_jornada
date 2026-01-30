@@ -260,8 +260,8 @@ safe_render(
 # Esto actualizará el bucket reportes-cierre-jornada con los archivos generados y 
 # que están en la carpeta /cierre-jornada
 gsutil_args <- c(
-  "rsync",
   "-m",
+  "rsync",
   "-d",
   "-r",
   paste0(path, "/"),
