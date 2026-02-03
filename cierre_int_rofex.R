@@ -7,7 +7,15 @@ newDate = bizdays::offset(lastDate, n = 1, cal = "cal")
 #newDate = ymd(lastDate) + days(1)
 # Traigo desde nueva fecha hasta ahora desde Rofex
 
-rofexOI = rbind(rofexH, rofex::getRofexPosition(from = newDate, to = adjust.previous(Sys.Date(), cal = cal))[[1]])
+if (newDate > Sys.Date()) {
+  message(sprintf("[%s] newDate (%s) > hoy (%s). Se omite getRofexPosition.",
+                  format(Sys.time(), "%F %T"),
+                  as.character(newDate),
+                  as.character(Sys.Date())))
+  rofexOI = rofexH
+} else {
+  rofexOI = rbind(rofexH, rofex::getRofexPosition(from = newDate, to = adjust.previous(Sys.Date(), cal = cal))[[1]])
+}
 
 # check de cantidad de cotizaciones por día
 # rofexOI %>% group_by(date) %>% summarise(cotizaciones = n()) %>% tail(n=10)
