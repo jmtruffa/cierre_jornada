@@ -95,19 +95,13 @@ if (length(args) >= 2) {
   run_scripts <- args[-1]
   if (length(run_scripts) == 0) run_scripts <- NULL
 }
-if (!is.null(run_scripts)) {
-  msg_scripts <- sprintf("[%s] run_scripts: %s",
-                         format(Sys.time(), "%F %T"),
-                         paste(run_scripts, collapse = ", "))
-  message(msg_scripts)
-  cat(msg_scripts, "\n", file = log_file, append = TRUE)
-}
 setwd("/home/jmt/dev/r/outlier/cierre_jornada")
 functions::setup(server = "GC")
 suppressWarnings(invisible(outlier::theme_outlier()))
 path = "/home/jmt/cierre-jornada"
 path_source = "/home/jmt/dev/r/outlier/cierre_jornada"
 update = F
+log_file = file.path(path, "cierre.log")
 
 # Silenciar mensajes/advertencias en todos los gráficos guardados
 grabaGrafo_base <- grabaGrafo
@@ -127,6 +121,13 @@ functions::log_msg(
   paste("Arranca proceso generador de cierre a las: ", Sys.time()),  
   log_file = file.path(path, "cierre.log")
 )
+if (!is.null(run_scripts)) {
+  msg_scripts <- sprintf("[%s] run_scripts: %s",
+                         format(Sys.time(), "%F %T"),
+                         paste(run_scripts, collapse = ", "))
+  message(msg_scripts)
+  cat(msg_scripts, "\n", file = log_file, append = TRUE)
+}
 ##############################
 # Backup y limpieza del directorio
 backup_path <- "/home/jmt/backup-cierre-jornada"
@@ -185,7 +186,6 @@ comi = 0.000
 fails = tibble(
   ticker = character()
 )
-log_file = file.path(path, "cierre.log")
 
 
 #######################################################################
