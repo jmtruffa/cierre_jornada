@@ -8,6 +8,8 @@ bond_pairs = tibble(
   bond2 = c("AL41D", "AL30D", "AL35D", "AE38D")
 )
 
+# Settlement type
+settlement = "A-24HS"
 
 # PPI login
 methodsPPI::getPPILogin()
