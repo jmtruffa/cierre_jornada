@@ -75,10 +75,6 @@ if (is.list(prices) && length(prices) >= 1 && !is.null(prices[[1]])) {
 if (is.list(prices) && length(prices) >= 2 && !is.null(prices[[2]])) {
   log_info(sprintf("prices[[2]]: %s", paste(prices[[2]], collapse = " | ")))
 }
-# Check for fails
-# prices
-
-# Keep prices dataframe
 prices <- prices[[1]]
 if (is.null(prices) || nrow(prices) == 0) {
   log_info("prices dataframe vacío: no hay datos para graficar")

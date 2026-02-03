@@ -134,10 +134,13 @@ backup_path <- "/home/jmt/backup-cierre-jornada"
 # Crear carpeta backup si no existe
 if (!dir.exists(backup_path)) dir.create(backup_path)
 
-# Listar archivos a respaldar
+# Listar archivos a respaldar (solo archivos anteriores a hoy)
 files <- list.files(path, full.names = TRUE)
-info <- file.info(files) # buscamos todo lo que no es dir para que se pueda mantener backup
-files <- files[!info$isdir] 
+info <- file.info(files)
+files <- files[!info$isdir]
+files_mtime <- as.Date(info$mtime[!info$isdir])
+files <- files[files_mtime < Sys.Date()]
+old_files_count <- length(files)
 
 # Copiar archivos al backup
 today <- format(Sys.Date(), "%Y%m%d")
@@ -145,10 +148,15 @@ backup_today <- file.path(backup_path, today)
 if (!dir.exists(backup_today)) dir.create(backup_today)
 
 functions::log_msg(
-  paste("Moviendo archivos previos a carpeta backup"),  
+  paste("Moviendo archivos previos a carpeta backup. Cantidad:", old_files_count),
   log_file = file.path(path, "cierre.log")
 )
-invisible(file.copy(from = files, to = backup_today, overwrite = TRUE))
+if (length(files) > 0) {
+  copy_ok <- file.copy(from = files, to = backup_today, overwrite = TRUE)
+  copied_count <- sum(copy_ok, na.rm = TRUE)
+} else {
+  copied_count <- 0L
+}
 
 
 # Limpieza de backups viejos
@@ -158,10 +166,20 @@ unlink(old_backups, recursive = TRUE)
 
 # Eliminar los archivos originales
 functions::log_msg(
-  paste("Eliminando archivos anteriores"),  
+  paste("Eliminando archivos anteriores. Cantidad:", old_files_count),
   log_file = file.path(path, "cierre.log")
 )
-invisible(file.remove(files))
+if (length(files) > 0) {
+  removed_ok <- file.remove(files)
+  removed_count <- sum(removed_ok, na.rm = TRUE)
+} else {
+  removed_count <- 0L
+}
+
+functions::log_msg(
+  paste("Backup OK:", copied_count, "| Borrados:", removed_count),
+  log_file = file.path(path, "cierre.log")
+)
 #############################
 
 
