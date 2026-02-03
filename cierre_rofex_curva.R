@@ -5,12 +5,22 @@ date2 = Sys.Date()
 query = paste0("SELECT * FROM \"rofexHis\" WHERE date = '", date1, "' OR date ='", date2, "' ")
 rofex = dbExecuteQuery(query = query, server = server, port = port)
 
+message(sprintf("[%s] DEBUG cierre_rofex_curva: rofex nrow=%s cols=%s",
+                format(Sys.time(), "%F %T"),
+                nrow(rofex),
+                paste(names(rofex), collapse = ", ")))
+
 # si cantidad cotizaciones de hoy < 10 o NULL entonces stop
 if (nrow(rofex) == 0 | nrow(rofex %>% filter(date == date2)) < 10) {
   stop("No hay cotizaciones para hoy")
 }
 
 if (max(tc$date, na.rm = TRUE) != Sys.Date()) tc <- dbGetTable(table = "A3500", server = server, port = port)
+
+message(sprintf("[%s] DEBUG cierre_rofex_curva: tc nrow=%s cols=%s",
+                format(Sys.time(), "%F %T"),
+                nrow(tc),
+                paste(names(tc), collapse = ", ")))
 
 query = "
 SELECT DISTINCT ON (\"date\")
@@ -54,6 +64,11 @@ datosGrafico = rofex %>%
     nombre = paste0(symbol, " (", settlement,  ")")
   ) %>% 
   ungroup()
+
+message(sprintf("[%s] DEBUG cierre_rofex_curva: datosGrafico nrow=%s cols=%s",
+                format(Sys.time(), "%F %T"),
+                nrow(datosGrafico),
+                paste(names(datosGrafico), collapse = ", ")))
 
 ############################
 ################################
@@ -269,6 +284,11 @@ grabaGrafo(variable = g_rofex_curva_solo_tem_last, path = path)
 #     ) %>% 
 #   left_join(venc) %>% select(TEM, vto, group)
 
+message(sprintf("[%s] DEBUG cierre_rofex_curva: curva_lecaps nrow=%s cols=%s",
+                format(Sys.time(), "%F %T"),
+                nrow(curva_lecaps),
+                paste(names(curva_lecaps), collapse = ", ")))
+
 curvaLecap = curva_lecaps %>% 
   filter(date == max(date)) %>% 
   mutate(group = "Lecap") %>% 
@@ -405,6 +425,13 @@ sinteticos = matched_df %>% #filter(ticker_futuro != "DLR072025") %>%
   select(date, ticker, yield = sinteticoTEA, mduration,group)
 
 sint_bonos = dl %>% 
+  { 
+    message(sprintf("[%s] DEBUG cierre_rofex_curva: dl nrow=%s cols=%s",
+                    format(Sys.time(), "%F %T"),
+                    nrow(.),
+                    paste(names(.), collapse = ", ")))
+    .
+  } %>%
   filter(date == max(date)) %>% 
   mutate(group = "DLK") %>% 
   bind_rows(sinteticos) %>% 
