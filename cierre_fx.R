@@ -1,7 +1,7 @@
 # lógica para chequear si son más de las 18:05 para que actualice el valor del ccl
 # desde methodsPPI::getPPIDLR y actualice la tabla de ccl
 ba_now <- as.POSIXct(Sys.time(), tz = "America/Argentina/Buenos_Aires")
-thresh <- as.POSIXct(strftime(ba_now, "%Y-%m-%d 18:10:00"),
+thresh <- as.POSIXct(strftime(ba_now, "%Y-%m-%d 17:10:00"),
                      tz = "America/Argentina/Buenos_Aires")
 
 if (ba_now > thresh) {
