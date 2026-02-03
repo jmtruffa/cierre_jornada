@@ -12,6 +12,29 @@ if (nrow(rofex) == 0 | nrow(rofex %>% filter(date == date2)) < 10) {
 
 if (max(tc$date, na.rm = TRUE) != Sys.Date()) tc <- dbGetTable(table = "A3500", server = server, port = port)
 
+query = "
+SELECT DISTINCT ON (\"date\")
+  \"date\",
+  \"cotizacion\" AS last_mlc
+FROM forex
+WHERE \"instrumento\" LIKE 'UST / ART%'
+  AND \"rueda\" = 'CAM1'
+  AND settle IN ('0','1','2','3','4','5')
+ORDER BY
+  \"date\",
+  CASE settle
+    WHEN '0' THEN 0
+    WHEN '1' THEN 1
+    WHEN '2' THEN 2
+    WHEN '3' THEN 3
+    WHEN '4' THEN 4
+    WHEN '5' THEN 5
+    ELSE 99
+  END;
+"
+last = functions::dbExecuteQuery(query = query, server = server, port = port) #%>% add_row(date = Sys.Date(), last_mlc = 1240)
+tc = functions::dbGetTable("A3500", server = server, port = port) %>% left_join(last, by = "date") #%>% 
+
 datosGrafico = rofex %>% 
   left_join(tc) %>% 
   mutate(
