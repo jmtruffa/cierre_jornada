@@ -28,6 +28,13 @@ suppressPackageStartupMessages({
 safe_source <- function(file, timeout = 600) {
   tryCatch(
     {
+      if (!is.null(run_scripts) && !basename(file) %in% run_scripts) {
+        msg_skip <- sprintf("[%s] Skip (no incluido en argumentos): %s",
+                            format(Sys.time(), "%F %T"), basename(file))
+        message(msg_skip)
+        cat(msg_skip, "\n", file = log_file, append = TRUE)
+        return(invisible(NULL))
+      }
       msg_ini <- sprintf("[%s] Ejecutando: %s", format(Sys.time(), "%F %T"), basename(file))
       message(msg_ini)
       cat(msg_ini, "\n", file = log_file, append = TRUE)
@@ -82,6 +89,18 @@ if (length(args) == 0) {
   update <- as.logical(tolower(args[1]))
 } else {
   update <- FALSE
+}
+run_scripts <- NULL
+if (length(args) >= 2) {
+  run_scripts <- args[-1]
+  if (length(run_scripts) == 0) run_scripts <- NULL
+}
+if (!is.null(run_scripts)) {
+  msg_scripts <- sprintf("[%s] run_scripts: %s",
+                         format(Sys.time(), "%F %T"),
+                         paste(run_scripts, collapse = ", "))
+  message(msg_scripts)
+  cat(msg_scripts, "\n", file = log_file, append = TRUE)
 }
 setwd("/home/jmt/dev/r/outlier/cierre_jornada")
 functions::setup(server = "GC")

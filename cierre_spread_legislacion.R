@@ -16,6 +16,9 @@ if (exists("token")) {
   log_info(sprintf("token names: %s", paste(names(token), collapse = ", ")))
 }
 log_info(sprintf("settlement exists: %s", exists("settlement")))
+if (exists("settlement")) {
+  log_info(sprintf("settlement value: %s", settlement))
+}
 
 calculate_and_plot_spread <- function(pair, prices) {
   bond1 <- pair[["bond1"]]
@@ -53,6 +56,8 @@ calculate_and_plot_spread <- function(pair, prices) {
 
 # Get prices for all tickers
 all_tickers <- unique(c(bond_pairs$bond1, bond_pairs$bond2))
+log_info(sprintf("tickers: %s", paste(all_tickers, collapse = ", ")))
+log_info(sprintf("from: %s to: %s", "2020-09-16", Sys.Date()))
 prices <- getPPIPriceHistoryMultiple3(
   token = token$token,
   ticker = all_tickers,
@@ -64,6 +69,9 @@ prices <- getPPIPriceHistoryMultiple3(
 log_info(sprintf("prices is list: %s length: %d", is.list(prices), length(prices)))
 if (is.list(prices) && length(prices) >= 1 && !is.null(prices[[1]])) {
   log_info(sprintf("prices[[1]] rows: %d", nrow(prices[[1]])))
+}
+if (is.list(prices) && length(prices) >= 2 && !is.null(prices[[2]])) {
+  log_info(sprintf("prices[[2]]: %s", paste(prices[[2]], collapse = " | ")))
 }
 # Check for fails
 # prices
