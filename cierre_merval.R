@@ -113,7 +113,12 @@ g_merval_ytd = merval %>%
   ) +
   # Optional: Add small ticks below the x-axis
   scale_x_date(
-    breaks = as.Date(paste0(2010:year(Sys.Date()), "-12-31")),
+    breaks = seq.Date(
+      from = as.Date("2010-01-01"),
+      to   = as.Date(paste0(year(Sys.Date()), "-12-01")),
+      by   = "1 year"
+    ),
+    labels = function(x) format(x, "%Y-%m"),
     date_minor_breaks = "1 year",
     expand = expansion(mult = c(0.02, 0.05))
   ) +
