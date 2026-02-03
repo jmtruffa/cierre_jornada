@@ -187,6 +187,12 @@ if (!bonos_pesos_prices$ok && is.null(bonos_pesos_prices$data)) {
 
       # Append a curva_lecaps (si viene vacía, queda solo BOTES)
       curva_lecaps <- dplyr::bind_rows(curva_lecaps, bonos_pesos)
+      saveRDS(curva_lecaps, file.path(path, "curva_lecaps.rds"))
+      functions::log_msg(
+        "curva_lecaps guardada en /home/jmt/cierre-jornada/curva_lecaps.rds",
+        "INFO",
+        log_file = log_file
+      )
     }
   } else {
     functions::log_msg("BONES PESOS: releída DB vacía desde 'from'; no se calculan yields.", "WARN", log_file = log_file)
