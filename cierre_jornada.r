@@ -100,7 +100,7 @@ functions::setup(server = "GC")
 suppressWarnings(invisible(outlier::theme_outlier()))
 path = "/home/jmt/cierre-jornada"
 path_source = "/home/jmt/dev/r/outlier/cierre_jornada"
-update = F
+#update = F
 log_file = file.path(path, "cierre.log")
 
 # Silenciar mensajes/advertencias en todos los gráficos guardados
