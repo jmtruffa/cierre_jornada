@@ -7,6 +7,8 @@ curva_lecaps          <- tibble::tibble()
 lecap_dinamica        <- tibble::tibble()
 curva_lecaps_dinamica <- tibble::tibble()
 
+methodsPPI::getPPILogin()
+
 ## Helper para elegir fecha from segura cuando max(date) es NA
 safe_from <- function(from, max_fecha) {
   if (is.na(max_fecha) || is.null(max_fecha)) as.Date(from) else min(as.Date(from), as.Date(max_fecha) + 1)
@@ -55,11 +57,21 @@ if (!lecap_prices$ok && is.null(lecap_prices$data)) {
     )
   }
 
-  # Releer desde DB para cubrir gaps/vencidos
-  lecaps <- functions::dbExecuteQuery(
+  # Releer desde DB para cubrir gaps/vencidos verificando que si no grabamos, agregue lo nuevo.
+  lecaps_db <- functions::dbExecuteQuery(
     query  = paste0("select date, ticker, price from historico_lecaps where date >= '", as.Date(from), "'"),
     server = server, port = port
   )
+  lecaps_db$date = as.Date(lecaps_db$date)
+  
+  lecaps = lecaps %>% select(date, ticker, price)
+  if (isTRUE(update)) {
+    lecaps = lecaps_db
+  } else {
+    lecaps = dplyr::bind_rows(lecaps_db,
+                              anti_join(lecaps, lecaps_db)
+                              ) %>% arrange(date)
+  }
 
   if (!is.null(lecaps) && nrow(lecaps) > 0) {
     curva_lecaps <- finance::tasasLecap(lecaps, server = server, port = port) %>%
@@ -129,7 +141,7 @@ bonos_pesos_prices <- suppressMessages(
 )
 
 if (!bonos_pesos_prices$ok && is.null(bonos_pesos_prices$data)) {
-  functions::log_msg(paste("BONES PESOS: fallo descarga precios:", bonos_pesos_prices$msg), "ERROR", log_file = log_file)
+  functions::log_msg(paste("BONOS PESOS: fallo descarga precios:", bonos_pesos_prices$msg), "ERROR", log_file = log_file)
   # seguimos; no se agregan BOTES
 } else {
   if (!is.null(bonos_pesos_prices$fail) && nrow(bonos_pesos_prices$fail) > 0) {
@@ -155,6 +167,8 @@ if (!bonos_pesos_prices$ok && is.null(bonos_pesos_prices$data)) {
   } else {
     bonos_pesos_prices_all <- bonos_pesos_prices_df %>% dplyr::filter(date >= as.Date(from))
   }
+  
+  bonos_pesos_prices_all = bonos_pesos_prices_all %>% select(-volume, -openingPrice, -max, -min, -previousClose, -marketChange, -marketChangePercent)
 
   if (!is.null(bonos_pesos_prices_all) && nrow(bonos_pesos_prices_all) > 0) {
     # Yields (no corta el proceso si falla)
@@ -167,12 +181,12 @@ if (!bonos_pesos_prices$ok && is.null(bonos_pesos_prices$data)) {
     )
 
     if (!res_y$ok && is.null(res_y$data)) {
-      functions::log_msg(paste("BONES PESOS (yields): fallo:", res_y$msg), "ERROR", log_file = log_file)
+      functions::log_msg(paste("BONOS PESOS (yields): fallo:", res_y$msg), "ERROR", log_file = log_file)
     } else {
       if (!is.null(res_y$issues) && nrow(res_y$issues) > 0) {
-        functions::log_msg(sprintf("BONES PESOS: issues en yields (NA): %d", nrow(res_y$issues)), "WARN", log_file = log_file)
+        functions::log_msg(sprintf("BONOS PESOS: issues en yields (NA): %d", nrow(res_y$issues)), "WARN", log_file = log_file)
       } else {
-        functions::log_msg("BONES PESOS: yields OK.", "INFO", log_file = log_file)
+        functions::log_msg("BONOS PESOS: yields OK.", "INFO", log_file = log_file)
       }
 
       apr_bonos_pesos <- res_y$data
