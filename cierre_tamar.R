@@ -43,17 +43,23 @@ if (!tamar_prices$ok && is.null(tamar_prices$data)) {
   
   
   # ahora re-leemos desde la tabla (para cubrir gaps si la API ya no trae vencidos)
-  letras_tamar = dbExecuteQuery(
-    query = paste0("select date, ticker, price from historico_tamar where date >= '", from, "'"), 
-    server = server, port = port)
+  if (update) {
+    letras_tamar = dbExecuteQuery(
+      query = paste0("select date, ticker, price from historico_tamar where date >= '", from, "'"), 
+      server = server, port = port)
+  }
   curva_tamar = finance::tasasTamar(letras_tamar, server = server, port = port) %>% 
     dplyr::mutate(group = "TAMAR")
 
   ###
   # DINAMICA
-  letras_tamar_dinamica = functions::dbExecuteQuery(
-    query = paste0("select date, ticker, price from historico_tamar where date >= '", from_dinamica, "'"), server = server, port = port
-  )
+  if (update) {
+    letras_tamar_dinamica = functions::dbExecuteQuery(
+      query = paste0("select date, ticker, price from historico_tamar where date >= '", from_dinamica, "'"), server = server, port = port
+    )
+  } else {
+    letras_tamar_dinamica = letras_tamar %>% dplyr::filter(date >= from_dinamica)
+  }
   curva_tamar_dinamica = finance::tasasTamar(letras_tamar_dinamica, server = server, port = port)
 
   curva_pesos = curva_lecaps %>% mutate(tea = ifelse(group == "BOTES", yield, tea)) %>% select(-yield) %>% 

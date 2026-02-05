@@ -60,12 +60,14 @@ if (!dl_prices$ok && is.null(dl_prices$data)) {
   }
 
   # re-leemos desde la tabla (para cubrir gaps si la API ya no trae vencidos)
-  dl <- dbExecuteQuery(
-    query  = paste0(
-      "select date, ticker, price from precios_dl where date >= '", from, "'"
-    ),
-    server = server, port = port
-  )
+  if (update) {
+    dl <- dbExecuteQuery(
+      query  = paste0(
+        "select date, ticker, price from precios_dl where date >= '", from, "'"
+      ),
+      server = server, port = port
+    )
+  }
 
   # Ajuste por tipo de cambio (pasamos a price_adj)
   dl <- dl %>%

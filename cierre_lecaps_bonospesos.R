@@ -146,11 +146,15 @@ if (!bonos_pesos_prices$ok && is.null(bonos_pesos_prices$data)) {
     )
   }
 
-  # Releer desde DB
-  bonos_pesos_prices_all <- functions::dbExecuteQuery(
-    query = paste0("select date, ticker, price from precios_bonos_pesos where date >= '", as.Date(from), "'"),
-    server = server, port = port
-  )
+  # Releer desde DB solo si update=TRUE; si no, reutilizamos lo descargado
+  if (isTRUE(update)) {
+    bonos_pesos_prices_all <- functions::dbExecuteQuery(
+      query = paste0("select date, ticker, price from precios_bonos_pesos where date >= '", as.Date(from), "'"),
+      server = server, port = port
+    )
+  } else {
+    bonos_pesos_prices_all <- bonos_pesos_prices_df %>% dplyr::filter(date >= as.Date(from))
+  }
 
   if (!is.null(bonos_pesos_prices_all) && nrow(bonos_pesos_prices_all) > 0) {
     # Yields (no corta el proceso si falla)

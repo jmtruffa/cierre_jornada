@@ -44,9 +44,11 @@ if (!boncer_prices$ok && is.null(boncer_prices$data)) {
   }
 
   # ahora re-leemos desde la tabla (para cubrir gaps si la API ya no trae vencidos)
-  boncer = dbExecuteQuery(
-    query = paste0("select date, ticker, price from precios_bonos_cer where date >= '", from, "'"), 
-    server = server, port = port)
+  if (update) {
+    boncer = dbExecuteQuery(
+      query = paste0("select date, ticker, price from precios_bonos_cer where date >= '", from, "'"), 
+      server = server, port = port)
+  }
   
   temp_boncer = boncer
   res_y <- functions::check_getYields(
