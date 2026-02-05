@@ -180,11 +180,12 @@ dl_dinamica <- dbExecuteQuery(
 # Ajuste por tipo de cambio para la dinámica
 dl_dinamica <- dl_dinamica %>%
   dplyr::left_join(
-    tc %>% dplyr::select(date, tc = A3500), # para el dinámico uso mejor el "promedio" del día
-    by = "date"
+    tc %>% dplyr::select(date, tc = A3500)
   ) %>%
   dplyr::mutate(price_adj = price / tc) %>% 
-  filter(!is.na(price_adj))  # acá vuelo los días que no hay mulc pero sí hay cotización de bonos e.g.: 6-nov
+  filter(!is.na(price_adj)) %>% # acá vuelo los días que no hay mulc pero sí hay cotización de bonos e.g.: 6-nov
+  filter(ticker != "D31O5" & date != "2025-10-29") %>% # por que me da 101.19875 el price_adjusted y yields rompe. 
+  filter(!(ticker == "D16E6" & date == "2026-01-14")) # por que me da 101.19875 el price_adjusted y yields rompe.
 
 temp_dl_dinamica <- dl_dinamica
 
