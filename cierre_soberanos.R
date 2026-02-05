@@ -168,13 +168,38 @@ log_timed("getPPIPriceHistoryMultiple3 (bopreales)", {
   )
 })
 
-max_fecha_bopreales = dbExecuteQuery(query="select max(date) from historico_bopreales", server = server, port = port) %>% pull()
-dbWriteDF(table = "historico_bopreales", df = bono[[1]] %>% filter(date > max_fecha_bopreales), server = server, port = port, append = T) 
+max_fecha_bopreales = dbExecuteQuery(
+  query = "select max(date) from historico_bopreales",
+  server = server, port = port
+) %>% pull()
+max_fecha_bopreales = as.Date(max_fecha_bopreales)
+df_bopreales_new <- bono[[1]]
+if (!is.na(max_fecha_bopreales)) {
+  df_bopreales_new <- df_bopreales_new %>% filter(date > max_fecha_bopreales)
+}
+if (isTRUE(update)) {
+  dbWriteDF(
+    table = "historico_bopreales",
+    df = df_bopreales_new,
+    server = server, port = port, append = TRUE
+  )
+}
 
 
 ### traigo datos para graficar
 from_bopreales = "2024-02-01"
-bono = dbExecuteQuery(query = paste0("select * from historico_bopreales where date >= '", from_bopreales, "' order by date"), server = server, port = port) %>% as_tibble() 
+bono_db = dbExecuteQuery(
+  query = paste0(
+    "select * from historico_bopreales where date >= '",
+    from_bopreales, "' order by date"
+  ),
+  server = server, port = port
+) %>% as_tibble()
+if (isTRUE(update)) {
+  bono = bono_db
+} else {
+  bono = dplyr::bind_rows(bono_db, df_bopreales_new) %>% arrange(date)
+}
 
 bono = bono %>% filter(!(ticker %in% c("BPJ5D", "BPJ5C") ))
 bopres = cbind(bono, getYields(bono$ticker,

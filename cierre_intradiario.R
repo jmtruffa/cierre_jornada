@@ -50,7 +50,9 @@ for (i in 1:length(ticker)) {
 
 result$plazo = settlement[1]
 
-dbWriteDF(table = "precios_intradiarios", df = result, server = server, port = port, append = T)
+if (isTRUE(update)) {
+  dbWriteDF(table = "precios_intradiarios", df = result, server = server, port = port, append = T)
+}
 
 # ggplot(result, aes(x = date, y = price, color = ticker)) +
 #   theme_usado() +
@@ -147,8 +149,9 @@ for (i in 1:length(ticker)) {
 
 result$plazo = settlement[1]
 
-
-dbWriteDF(table = "precios_intradiarios", df = result, server = server, port = port, append = T)
+if (isTRUE(update)) {
+  dbWriteDF(table = "precios_intradiarios", df = result, server = server, port = port, append = T)
+}
 
 # ggplot(result, aes(x = date, y = price, color = ticker)) +
 #   theme_usado() +
@@ -253,8 +256,9 @@ for (i in 1:length(ticker)) {
 
 result$plazo = settlement[1]
 
-
-dbWriteDF(table = "precios_intradiarios", df = result, server = server, port = port, append = T)
+if (isTRUE(update)) {
+  dbWriteDF(table = "precios_intradiarios", df = result, server = server, port = port, append = T)
+}
 
 ggplot(result, aes(x = date, y = price, color = ticker)) +
   theme_usado() +
@@ -352,8 +356,9 @@ for (i in 1:length(ticker)) {
 
 result$plazo = settlement[1]
 
-
-dbWriteDF(table = "precios_intradiarios", df = result, server = server, port = port, append = T)
+if (isTRUE(update)) {
+  dbWriteDF(table = "precios_intradiarios", df = result, server = server, port = port, append = T)
+}
 
 # ggplot(result, aes(x = date, y = price, color = ticker)) +
 #   theme_usado() +

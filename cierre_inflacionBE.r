@@ -1,9 +1,16 @@
 
 # hasta qué fecha tengo en la DB
-dbExecuteQuery(query = "select max(fecha) from datos_infla_be", server = server, port = port) %>% pull()
+max_fecha_db <- dbExecuteQuery(
+  query = "select max(fecha) from datos_infla_be",
+  server = server, port = port
+) %>% pull()
+max_fecha_db <- as.Date(max_fecha_db)
 
 # Define the start and end dates
 start_date = start_date_inflabe
+if (!is.na(max_fecha_db) && max_fecha_db < start_date_inflabe) {
+  start_date = max_fecha_db + 1
+}
 end_date = end_date_inflabe 
 
 # Generate all working days between start_date and end_date
@@ -20,10 +27,24 @@ for (fecha in working_days) {
 }
 
 ## Actualiza la tabla de inflabe en la base de datos
-# consultamos la última fecha de la tabla datos_infla_be
-dbWriteDF(table = "datos_infla_be", df = all_results, append = T, server = server, port = port)
-# acá pongo desde cuando me traigo para graficar
-db_infla_be = dbExecuteQuery(query = paste0("SELECT fecha, fechas_tasa_nominal, \"BE_inflation_mensual\", \"BE_inflation_anual\" FROM datos_infla_be WHERE fecha >= '", start_date_inflabe_graph, "'"), server = server, port = port)
+if (isTRUE(update)) {
+  if (!is.na(max_fecha_db)) {
+    all_results <- all_results %>% filter(fecha > max_fecha_db)
+  }
+  dbWriteDF(table = "datos_infla_be", df = all_results, append = T, server = server, port = port)
+  # acá pongo desde cuando me traigo para graficar
+  db_infla_be = dbExecuteQuery(
+    query = paste0(
+      "SELECT fecha, fechas_tasa_nominal, \"BE_inflation_mensual\", \"BE_inflation_anual\" ",
+      "FROM datos_infla_be WHERE fecha >= '", start_date_inflabe_graph, "'"
+    ),
+    server = server, port = port
+  )
+} else {
+  db_infla_be = all_results %>%
+    filter(fecha >= as.Date(start_date_inflabe_graph)) %>%
+    select(fecha, fechas_tasa_nominal, BE_inflation_mensual, BE_inflation_anual)
+}
 
 # seteamos comas y puntos -> español
 Sys.setlocale("LC_TIME", "es_ES.UTF-8")
