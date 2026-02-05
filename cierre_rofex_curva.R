@@ -416,6 +416,16 @@ sinteticos = matched_df %>% #filter(ticker_futuro != "DLR072025") %>%
          group = "Sintético"   ) %>% 
   select(date, ticker, yield = sinteticoTEA, mduration,group)
 
+# traigo dl del objeto grabado en el proceso de linkers
+dl_path <- file.path(path, "dl.rds")
+if (!file.exists(dl_path)) {
+  warning(sprintf("No existe %s. Ejecutá cierre_dl.R para generarlo.",
+                  dl_path))
+  dl <- tibble::tibble()
+} else {
+  dl <- readRDS(dl_path)
+}
+
 sint_bonos = dl %>% 
   filter(date == max(date)) %>% 
   mutate(group = "DLK") %>% 

@@ -72,8 +72,20 @@ if (!tamar_prices$ok && is.null(tamar_prices$data)) {
   } else {
     curva_lecaps <- readRDS(curva_lecaps_path)
   }
+  #print(str(curva_lecaps))
+  #print(str(curva_tamar))
+  curva_tamar = curva_tamar %>%
+    select(-any_of(c(
+      "volume",
+      "openingPrice",
+      "max",
+      "min",
+      "previousClose",
+      "marketChange",
+      "marketChangePercent"
+    )))
   
-  curva_tamar = curva_tamar %>% select(-volume, -openingPrice, -max, -min, -previousClose, -marketChange, -marketChangePercent)
+  #curva_tamar = curva_tamar %>% select(-volume, -openingPrice, -max, -min, -previousClose, -marketChange, -marketChangePercent)
   curva_pesos = curva_lecaps %>% mutate(tea = ifelse(group == "BOTES", yield, tea)) %>% select(-yield) %>% 
     rbind(curva_tamar %>% select(-tamar_prom_tna, -tamar_tem, vf = vpv)) 
 }

@@ -2,6 +2,30 @@
 # DOLLAR LINKED - ESTÁTICO
 ############################################################
 
+# traemos el tc
+query = "
+SELECT DISTINCT ON (\"date\")
+  \"date\",
+  \"cotizacion\" AS last_mlc
+FROM forex
+WHERE \"instrumento\" LIKE 'UST / ART%'
+  AND \"rueda\" = 'CAM1'
+  AND settle IN ('0','1','2','3','4','5')
+ORDER BY
+  \"date\",
+  CASE settle
+    WHEN '0' THEN 0
+    WHEN '1' THEN 1
+    WHEN '2' THEN 2
+    WHEN '3' THEN 3
+    WHEN '4' THEN 4
+    WHEN '5' THEN 5
+    ELSE 99
+  END;
+"
+last = functions::dbExecuteQuery(query = query, server = server, port = port) #%>% add_row(date = Sys.Date(), last_mlc = 1240)
+tc = functions::dbGetTable("A3500", server = server, port = port) %>% left_join(last, by = "date") #%>% 
+
 max_fecha_dl = dbExecuteQuery(
   query = "select max(date) from precios_dl",
   server = server, port = port
@@ -132,6 +156,12 @@ if (!dl_prices$ok && is.null(dl_prices$data)) {
         tna = ((1 + yield)^(1/2) - 1) * 2,
         group = "DL"
       )
+    saveRDS(dl, file.path(path, "dl.rds"))
+    functions::log_msg(
+      "dl guardados en /home/jmt/cierre-jornada/dl.rds",
+      "INFO",
+      log_file = log_file
+    )
   }
 }
 

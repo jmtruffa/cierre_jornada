@@ -183,7 +183,6 @@ functions::log_msg(
 #############################
 
 
-
 cal = bizdays::create.calendar('cal', functions::getFeriados(server = server, port = port), weekdays = c('saturday','sunday'))
 cal_usa = bizdays::create.calendar('cal_usa', functions::dbGetTable(table = "calendario_feriados_usa", server = server, port = port)$date, weekdays = c('saturday','sunday'))
 # viernes toma el valor TRUE si el día es viernes

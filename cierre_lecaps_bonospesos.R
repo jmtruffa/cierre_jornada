@@ -168,7 +168,7 @@ if (!bonos_pesos_prices$ok && is.null(bonos_pesos_prices$data)) {
     bonos_pesos_prices_all <- bonos_pesos_prices_df %>% dplyr::filter(date >= as.Date(from)) %>% select(-volume, -openingPrice, -max, -min, -previousClose, -marketChange, -marketChangePercent)
   }
   
-  bonos_pesos_prices_all = bonos_pesos_prices_all %>% select(-volume, -openingPrice, -max, -min, -previousClose, -marketChange, -marketChangePercent)
+  #bonos_pesos_prices_all = bonos_pesos_prices_all
 
   if (!is.null(bonos_pesos_prices_all) && nrow(bonos_pesos_prices_all) > 0) {
     # Yields (no corta el proceso si falla)
