@@ -1,10 +1,10 @@
 # comparativa duales contra bonos tasa fija
-#Traer curva_lecaps con los tamar incluidos
+#Traer hist_lecaps con los tamar incluidos
 temp_lecap = dbExecuteQuery(query = paste0("select date, ticker, price from historico_lecaps where date >= '", from_dinamica, "'"), server = server, port = port)
-curva_lecaps = finance::tasasLecap(temp_lecap, server = server, port = port)
+hist_lecaps = finance::tasasLecap(temp_lecap, server = server, port = port)
 tamar = bcra::getDatosVariable(idVariable = 136, desde = from_dinamica, hasta = Sys.Date()) %>% mutate(valor = valor / 100)
-#curva_lecaps = rbind(curva_lecaps, lecaps_nueva %>% select(-group))
-duales = curva_lecaps %>% 
+#hist_lecaps = rbind(hist_lecaps, lecaps_nueva %>% select(-group))
+duales = hist_lecaps %>% 
   filter(str_detect(ticker, "TT")) %>% 
   #agrego un sufijo para que no se confunda con las letras
   mutate(
@@ -28,13 +28,11 @@ duales = curva_lecaps %>%
   ) %>%
   ungroup()
 
-
-
-curva_lecaps = curva_lecaps %>% 
+hist_lecaps = hist_lecaps %>% 
   rbind(duales %>% select(-date_start, -date_end, -tamar_prom_tna, -tamar_tem, -vpv))
 
 ## seelcciono
-g_tamar_comparado1 = curva_lecaps %>% 
+g_tamar_comparado1 = hist_lecaps %>% 
   filter(ticker %in% c("T13F6", "TTM26", "TTM26_tmr")) %>% 
   
   
@@ -52,14 +50,14 @@ g_tamar_comparado1 = curva_lecaps %>%
                      labels = scales::percent) +
   
   labs(title = "CURVA T13F6 VS TTM26 - DINAMICA",
-       subtitle = paste0('Último dato: ', tail(curva_lecaps, n = 1) %>% pull(date)),
+       subtitle = paste0('Último dato: ', tail(hist_lecaps, n = 1) %>% pull(date)),
        y = 'TEM',
        x = '',
        caption = paste0(.pie, " en base a precios de mercado."))+
   theme(legend.title =  element_blank()) 
 grabaGrafo(variable = g_tamar_comparado1, path = path)
 
-g_tamar_comparado2 = curva_lecaps %>% 
+g_tamar_comparado2 = hist_lecaps %>% 
   filter(ticker %in% c("T30J6", "TTJ26", "TTJ26_tmr")) %>% 
   ggplot(aes(x = date, y = tem, color = ticker, label = ticker)) + 
   theme_usado() +
@@ -70,14 +68,14 @@ g_tamar_comparado2 = curva_lecaps %>%
   scale_y_continuous(breaks = breaks_extended(10), 
                      labels = scales::percent) +
   labs(title = "CURVA T30J6 VS TTJ26 - DINAMICA",
-       subtitle = paste0('Último dato: ', tail(curva_lecaps, n = 1) %>% pull(date)),
+       subtitle = paste0('Último dato: ', tail(hist_lecaps, n = 1) %>% pull(date)),
        y = 'TEM',
        x = '',
        caption = paste0(.pie, " en base a precios de mercado."))+
   theme(legend.title =  element_blank())
 grabaGrafo(variable = g_tamar_comparado2, path = path)
 
-g_tamar_comparado3 = curva_lecaps %>% 
+g_tamar_comparado3 = hist_lecaps %>% 
   filter(ticker %in% c("TTS26", "TTS26_tmr")) %>% 
   ggplot(aes(x = date, y = tem, color = ticker, label = ticker)) + 
   theme_usado() +
@@ -88,14 +86,14 @@ g_tamar_comparado3 = curva_lecaps %>%
   scale_y_continuous(breaks = breaks_extended(10), 
                      labels = scales::percent) + 
   labs(title = "CURVA TTS26 - DINAMICA",
-       subtitle = paste0('Último dato: ', tail(curva_lecaps, n = 1) %>% pull(date)),
+       subtitle = paste0('Último dato: ', tail(hist_lecaps, n = 1) %>% pull(date)),
        y = 'TEM',
        x = '',
        caption = paste0(.pie, " en base a precios de mercado."))+
   theme(legend.title =  element_blank())
 grabaGrafo(variable = g_tamar_comparado3, path = path)
 
-g_tamar_comparado4 = curva_lecaps %>% 
+g_tamar_comparado4 = hist_lecaps %>% 
   filter(ticker %in% c("TTD26", "TTD26_tmr")) %>% 
   ggplot(aes(x = date, y = tem, color = ticker, label = ticker)) + 
   theme_usado() +
@@ -106,7 +104,7 @@ g_tamar_comparado4 = curva_lecaps %>%
   scale_y_continuous(breaks = breaks_extended(10), 
                      labels = scales::percent) +
   labs(title = "CURVA TTD26 - DINAMICA",
-       subtitle = paste0('Último dato: ', tail(curva_lecaps, n = 1) %>% pull(date)),
+       subtitle = paste0('Último dato: ', tail(hist_lecaps, n = 1) %>% pull(date)),
        y = 'TEM',
        x = '',
        caption = paste0(.pie, " en base a precios de mercado."))+
@@ -116,9 +114,9 @@ grabaGrafo(variable = g_tamar_comparado4, path = path)
 ##### TAMAR PROMEDIO indiferencia RESTO DEL PLAZO
 # traer todas las lecaps
 # temp_lecap = dbExecuteQuery(query = paste0("select * from historico_lecaps where date >= '", date1, "'"), server = server, port = port)
-# curva_lecaps = finance::tasasLecap(temp_lecap, server = server, port = port)
+# hist_lecaps = finance::tasasLecap(temp_lecap, server = server, port = port)
 # tamar = bcra::getDatosVariable(idVariable = 136, desde = "2024-01-01", hasta = Sys.Date()) %>% mutate(valor = valor / 100)
-duales = curva_lecaps %>% 
+duales = hist_lecaps %>% 
   filter(str_detect(ticker, "TT")) %>% 
   #agrego un sufijo para que no se confunda con las letras
   mutate(
@@ -153,7 +151,7 @@ duales = curva_lecaps %>%
     plazo_restante = as.numeric(add.bizdays(date_vto, - 10, cal) - date) + 1
   ) %>% 
   mutate(ticker_join = str_remove(ticker, "_tmr$")) %>% 
-  left_join(curva_lecaps %>% select(date, ticker) %>% filter(str_detect(ticker, "TT")), 
+  left_join(hist_lecaps %>% select(date, ticker) %>% filter(str_detect(ticker, "TT")), 
             join_by(date, ticker_join == ticker)) %>% 
   mutate(
     tasa_emision_TEM365 = ( vf / 100) ^ ( 30 / (as.numeric(date_vto - date_liq)) ) - 1,

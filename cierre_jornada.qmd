@@ -15,11 +15,30 @@ library(htmltools)
 
 ```{r mulc, echo = FALSE}
 knitr::opts_chunk$set(comment = "")
-if (exists("mulc", inherits = TRUE)) {
-  mulc %>% tail() %>% flextable() %>% width(j="date", width = 1.) %>% align(align="center", part = "all")
-} else {
-  NULL
+if (!exists("mulc", inherits = TRUE)) {
+
+  mulc_path <- file.path(path, "mulc.rds")
+
+  if (!file.exists(mulc_path)) {
+    warning(sprintf(
+      "No existe %s. Ejecutá cierre_mulc.R para generarlo.",
+      mulc_path
+    ))
+    mulc <- NULL
+  } else {
+    mulc <- readRDS(mulc_path)
+  }
 }
+
+# Uso del objeto si existe
+if (!is.null(mulc)) {
+  mulc %>%
+    tail() %>%
+    flextable() %>%
+    width(j = "date", width = 1) %>%
+    align(align = "center", part = "all")
+}
+
 ```
 
 <br>
@@ -28,10 +47,30 @@ if (exists("mulc", inherits = TRUE)) {
 
 ```{r reservas, echo = FALSE}
 knitr::opts_chunk$set(comment = "")
-if (exists("reservas", inherits = TRUE)) {
-  reservas %>% mutate(var=valor - lag(valor)) %>% tail() %>% select(date, reservasTXT, var) %>% flextable() %>% width(j="date", width = 1.) %>% align(align="center", part = "all")
-} else {
-  NULL
+if (!exists("reservas", inherits = TRUE)) {
+
+  reservas_path <- file.path(path, "reservas.rds")
+
+  if (!file.exists(reservas_path)) {
+    warning(sprintf(
+      "No existe %s. Ejecutá cierre_reservas.R para generarlo.",
+      reservas_path
+    ))
+    reservas <- NULL
+  } else {
+    reservas <- readRDS(reservas_path)
+  }
+}
+
+# A partir de acá se usa `reservas` si existe
+if (!is.null(reservas)) {
+  reservas %>%
+    mutate(var = valor - lag(valor)) %>%
+    tail() %>%
+    select(date, reservasTXT, var) %>%
+    flextable() %>%
+    width(j = "date", width = 1) %>%
+    align(align = "center", part = "all")
 }
 ```
 
@@ -42,11 +81,26 @@ if (exists("reservas", inherits = TRUE)) {
 ```{r fx, echo = FALSE}
 knitr::opts_chunk$set(comment = "")
 #fx %>% select (date, mepAL, varD_mepAL, varS_mepAL, ccl3, varD_ccl3, varS_ccl3, canjeCCL3, A3500, brechaTXT) %>% tail() %>% print(n = Inf, width = Inf)
-if (exists("tabla_fx", inherits = TRUE)) {
-  tabla_fx
-} else {
-  NULL
+if (!exists("tabla_fx", inherits = TRUE)) {
+
+  tabla_fx_path <- file.path(path, "tabla_fx.rds")
+
+  if (!file.exists(tabla_fx_path)) {
+    warning(sprintf(
+      "No existe %s. Ejecutá el script correspondiente para generarlo.",
+      tabla_fx_path
+    ))
+    tabla_fx <- NULL
+  } else {
+    tabla_fx <- readRDS(tabla_fx_path)
+  }
 }
+
+# Uso del objeto si existe
+if (!is.null(tabla_fx)) {
+  tabla_fx
+}
+
 ```
 
 <br>

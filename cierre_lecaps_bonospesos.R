@@ -74,6 +74,7 @@ if (!lecap_prices$ok && is.null(lecap_prices$data)) {
   }
 
   if (!is.null(lecaps) && nrow(lecaps) > 0) {
+    
     curva_lecaps <- finance::tasasLecap(lecaps, server = server, port = port) %>%
       dplyr::mutate(group = "LECAPS")
 
@@ -100,13 +101,16 @@ if (!lecap_prices$ok && is.null(lecap_prices$data)) {
         group     = "DUALES"
       ) %>%
       dplyr::ungroup()
-
+  
     if (!is.null(duales) && nrow(duales) > 0) {
       curva_lecaps <- dplyr::bind_rows(
         curva_lecaps,
         dplyr::select(duales, -date_start, -date_end, -tamar_prom_tna, -tamar_tem, -vpv)
       )
     }
+    # Acá le saco los TT a tasa fija, por eso dejo los que terminan en _tmr
+    curva_lecaps <- curva_lecaps %>% 
+      filter(!grepl("^TT(?!.*_tmr$)", ticker, perl = TRUE)) 
   } else {
     functions::log_msg("LECAPS: releída DB vacía desde 'from'; curva_lecaps queda vacía.", "WARN", log_file = log_file)
   }

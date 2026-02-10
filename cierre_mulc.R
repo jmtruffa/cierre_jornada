@@ -15,7 +15,12 @@ ORDER BY
 vol_mulc = as_tibble(functions::dbExecuteQuery(vol_mulc_todos_plazos, server = server, port = port)) %>% arrange(date)
 compras_bcra = dbGetTable(table = "comprasMULCBCRA", server = server, port = port) %>% arrange(date) %>% mutate(comprasBCRA = comprasBCRA * 1e6)
 mulc = vol_mulc %>% left_join(compras_bcra, by = "date") %>% mutate(vol_total = volumen + volumen_usmep, pctBCRA = (comprasBCRA / (volumen + volumen_usmep ))) 
-
+saveRDS(mulc, file.path(path, "mulc.rds"))
+functions::log_msg(
+  "mulc guardado en /home/jmt/cierre-jornada/mulc.rds",
+  "INFO",
+  log_file = log_file
+)
 
 ######## 
 # Graficos

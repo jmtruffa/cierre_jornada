@@ -16,6 +16,13 @@ reservas = reservas %>%
       reservasTXT = format(round(valor, 0), nsmall = 0, big.mark = ".", decimal.mark = ",")
     )
 
+saveRDS(reservas, file.path(path, "reservas.rds"))
+functions::log_msg(
+  "reservas guardado en /home/jmt/cierre-jornada/reservas.rds",
+  "INFO",
+  log_file = log_file
+)
+
 g_reservas_brutas = reservas %>% 
   
   ggplot(aes(x=date, y=valor, label = reservasTXT )) +
