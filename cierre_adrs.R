@@ -18,7 +18,8 @@ varADR = function(tickers, date2) {
   
   # Calculate 1 working day and 5 working days prior to date2
   date1d = bizdays::offset(date2, -1, "MyCalendar")
-  date5d = bizdays::offset(date2, -5, "MyCalendar")
+  date5d <- date2 - lubridate::days(5)
+  date5d <- bizdays::adjust.previous(date5d, "MyCalendar")
   
   # Calculate the last business day of the previous year
   end_of_last_year = as.Date(paste0(year(date2) - 1, "-12-31"))
