@@ -81,6 +81,26 @@ safe_render <- function(...) {
   )
 }
 
+safe_ppi_login <- function() {
+  tryCatch(
+    {
+      methodsPPI::getPPILogin()
+      msg_ok <- sprintf("[%s] PPI login OK", format(Sys.time(), "%F %T"))
+      message(msg_ok)
+      cat(msg_ok, "\n", file = log_file, append = TRUE)
+      TRUE
+    },
+    error = function(e) {
+      msg_err <- sprintf("[%s] ERROR en getPPILogin(): %s",
+                         format(Sys.time(), "%F %T"),
+                         conditionMessage(e))
+      message(msg_err)
+      cat(msg_err, "\n", file = log_file, append = TRUE)
+      FALSE
+    }
+  )
+}
+
 # capturamos el primer argumento del llamado para ver si corre actualizando la base
 args = commandArgs(trailingOnly = TRUE)
 if (length(args) == 0) {
@@ -198,7 +218,7 @@ end_date_inflabe = Sys.Date()
 start_date_inflabe_graph = "2025-01-01"
 settlement = "A-24HS"
 settle = "t+0" 
-methodsPPI::getPPILogin() # crea el token de PPI que va a usar para todas las consultas.
+ppi_login_ok <- safe_ppi_login() # si falla, loguea y permite continuar con los scripts
 comi = 0.000
 fails = tibble(
   ticker = character()
