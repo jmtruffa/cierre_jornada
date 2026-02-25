@@ -227,7 +227,7 @@ Sys.setlocale("LC_TIME", "en_US.UTF-8")
         geom_line(linewidth = 1) +
         ggrepel::geom_label_repel(data = labelsBE, show.legend = FALSE, nudge_x = 15, max.overlaps = 12) +
         scale_x_date(
-          date_breaks = "2 weeks", 
+          date_breaks = "2 months", 
           labels = label_date("%d-%b\n%Y", locale = "es"),
           expand = c(0.05, 0.0)
         ) +
@@ -265,7 +265,7 @@ g_inflabe_dinamica_tea = db_infla_be %>%
   
   #ggrepel::geom_label_repel(data = labelsBE_tea, show.legend = FALSE, nudge_x = 15) +
   
-  scale_x_date(date_breaks = "2 weeks", labels = label_date("%d-%b\n%Y", locale = "es"),
+  scale_x_date(date_breaks = "2 months", labels = label_date("%d-%b\n%Y", locale = "es"),
                expand = c(0.15,0.0)) +
   
   scale_y_continuous(labels = scales::percent_format(accuracy = 0.01),
