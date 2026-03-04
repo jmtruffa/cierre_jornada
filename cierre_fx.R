@@ -136,6 +136,12 @@ tabla_fx = set %>%
     varS_last_mlc = "VARS_LAST_MLC"
   ) 
 
+saveRDS(tabla_fx, file.path(path, "tabla_fx.rds"))
+functions::log_msg(
+  "tabla_fx guardada en /home/jmt/cierre-jornada/tabla_fx.rds",
+  "INFO",
+  log_file = log_file
+)
 
 ### BRECHA
 valores = fx %>% filter(

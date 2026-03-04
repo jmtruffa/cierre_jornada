@@ -17,3 +17,4 @@ set -euo pipefail
   cierre_riesgo_pais.R \
   cierre_soberanos.R \
   >> /home/jmt/data/cron_cierre_1715.log 2>&1
+ 
