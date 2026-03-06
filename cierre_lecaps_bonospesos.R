@@ -110,7 +110,8 @@ if (!lecap_prices$ok && is.null(lecap_prices$data)) {
     }
     # Acá le saco los TT a tasa fija, por eso dejo los que terminan en _tmr
     curva_lecaps <- curva_lecaps %>% 
-      filter(!grepl("^TT(?!.*_tmr$)", ticker, perl = TRUE)) 
+      filter(!grepl("^TT(?!.*_tmr$)", ticker, perl = TRUE)) %>% 
+      filter(ticker != "TTM26_tmr")
   } else {
     functions::log_msg("LECAPS: releída DB vacía desde 'from'; curva_lecaps queda vacía.", "WARN", log_file = log_file)
   }
