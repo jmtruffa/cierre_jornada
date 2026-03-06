@@ -158,7 +158,7 @@ if (!dir.exists(backup_path)) dir.create(backup_path)
 files <- list.files(path, full.names = TRUE)
 info <- file.info(files)
 files <- files[!info$isdir]
-files_mtime <- as.Date(info$mtime[!info$isdir])
+files_mtime <- as.Date(info$mtime[!info$isdir], tz = "America/Buenos_Aires")
 files <- files[files_mtime < Sys.Date()]
 old_files_count <- length(files)
 
