@@ -157,16 +157,16 @@ duales = hist_lecaps %>%
     tasa_emision_TEM365 = ( vf / 100) ^ ( 30 / (as.numeric(date_vto - date_liq)) ) - 1,
     tem_be_vto = ((plazo_inicial + plazo_restante) * tasa_emision_TEM365 - plazo_inicial * tamar_tem_completa) / plazo_restante,
     tna_be_vto = (((1 + tem_be_vto) ^ 12) ^ (32/365) - 1) * (365 / 32),
+    vpv_15 = price * (1 + .015) ^ (as.numeric(date_vto - settle) / 30),
+    vpv_2 = price * (1 + .02) ^ (as.numeric(date_vto - settle) / 30),
     vpv_25 = price * (1 + .025) ^ (as.numeric(date_vto - settle) / 30),
     vpv_3 = price * (1 + .03) ^ (as.numeric(date_vto - settle) / 30),
     vpv_35 = price * (1 + .035) ^ (as.numeric(date_vto - settle) / 30),
-    vpv_4 = price * (1 + .04) ^ (as.numeric(date_vto - settle) / 30),
-    vpv_45 = price * (1 + .045) ^ (as.numeric(date_vto - settle) / 30),
+    y_bar_15 = ((plazo_inicial + plazo_restante) / plazo_restante) * (365/32) * ((vpv_15/100)^(32/(plazo_inicial + plazo_restante)) - 1) - (plazo_inicial/plazo_restante) * tamar_prom_tna_completa,
+    y_bar_2 = ((plazo_inicial + plazo_restante) / plazo_restante) * (365/32) * ((vpv_2/100)^(32/(plazo_inicial + plazo_restante)) - 1) - (plazo_inicial/plazo_restante) * tamar_prom_tna_completa,
     y_bar_25 = ((plazo_inicial + plazo_restante) / plazo_restante) * (365/32) * ((vpv_25/100)^(32/(plazo_inicial + plazo_restante)) - 1) - (plazo_inicial/plazo_restante) * tamar_prom_tna_completa,
     y_bar_3 = ((plazo_inicial + plazo_restante) / plazo_restante) * (365/32) * ((vpv_3/100)^(32/(plazo_inicial + plazo_restante)) - 1) - (plazo_inicial/plazo_restante) * tamar_prom_tna_completa,
-    y_bar_35 = ((plazo_inicial + plazo_restante) / plazo_restante) * (365/32) * ((vpv_35/100)^(32/(plazo_inicial + plazo_restante)) - 1) - (plazo_inicial/plazo_restante) * tamar_prom_tna_completa,
-    y_bar_4 = ((plazo_inicial + plazo_restante) / plazo_restante) * (365/32) * ((vpv_4/100)^(32/(plazo_inicial + plazo_restante)) - 1) - (plazo_inicial/plazo_restante) * tamar_prom_tna_completa,
-    y_bar_45 = ((plazo_inicial + plazo_restante) / plazo_restante) * (365/32) * ((vpv_45/100)^(32/(plazo_inicial + plazo_restante)) - 1) - (plazo_inicial/plazo_restante) * tamar_prom_tna_completa
+    y_bar_35 = ((plazo_inicial + plazo_restante) / plazo_restante) * (365/32) * ((vpv_35/100)^(32/(plazo_inicial + plazo_restante)) - 1) - (plazo_inicial/plazo_restante) * tamar_prom_tna_completa
   )
 
 t_duales_breakeven = duales %>% 
@@ -211,11 +211,11 @@ df_duales = duales %>%
     PRICE = price,
     `TEM A MKT` = tem,
     `TAMAR PROM HOY` = tamar_prom_tna_completa,
+    `TAMAR BE 1.5%` = y_bar_15,
+    `TAMAR BE 2%` = y_bar_2,
     `TAMAR BE 2.5%` = y_bar_25,
     `TAMAR BE 3%` = y_bar_3,
-    `TAMAR BE 3.5%` = y_bar_35,
-    `TAMAR BE 4%` = y_bar_4,
-    `TAMAR BE 4.5%` = y_bar_45
+    `TAMAR BE 3.5%` = y_bar_35
   )
 num_cols <- names(df_duales)[sapply(df_duales, is.numeric)]
 
