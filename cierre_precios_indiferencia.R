@@ -21,6 +21,29 @@ if (!file.exists(fx_path)) {
   fx <- readRDS(fx_path)
 }
 
+# comienzo con los datos para calcular las bandas
+end_date = Sys.Date() + months(24)
+start_date <- "2026-02-02" # desde cuando comenzó el régimen
+
+tasas_ipc =  dbGetTable(table = "IPCIndec", server = server, port = port) %>% 
+  select(date, starts_with("nacional")) %>% 
+  mutate(
+    across(-date, ~ . / lag(.) - 1)
+  ) %>% select(date, nacionalNivelGeneral) %>% 
+  mutate(nacionalNivelGeneral = round(nacionalNivelGeneral,3)) %>% 
+  # filtro desde la infla que mira el régimen que es nov-25
+  filter(date >= lubridate::`%m-%`(lubridate::floor_date(as.Date(start_date), unit = "month"), months(2))) %>%
+  pull(nacionalNivelGeneral)
+
+n_needed <- lubridate::interval(start_date, end_date) %/% months(1) + 1
+tasas_ipc_extendidas <- c(tasas_ipc, rep(tail(tasas_ipc, 1), max(0, n_needed - length(tasas_ipc))))
+
+bandas = finance::get_bandas2(end_date = end_date, 
+            start_date = start_date, 
+            upper_start = 1567.85, 
+            lower_start = 891.56, 
+            monthly_rates = tasas_ipc_extendidas)
+
 df_tc <-
   curva_lecaps %>% 
   select(date, ticker, price, vf, date_vto) %>% 
@@ -32,11 +55,11 @@ df_tc <-
     by = "date"
   ) %>% 
   filter(!is.na(vf)) %>% 
-  left_join(finance::get_bandas(), join_by(date_vto == date)) %>% 
-  mutate(across(c(mepAL, ccl3, A3500),
+  left_join(bandas, join_by(date_vto == date)) %>% 
+  mutate(across(c(mepAL, ccl, A3500),
                 ~ (vf / price) * .x,
                 .names = "tc_{.col}")) %>% 
-  select(-c(mepAL, ccl3, A3500))
+  select(-c(mepAL, ccl, A3500))
 
 # traigo los settle para cada mes de date_vto
 # rofexOI = functions::dbGetTable(table = "rofexHis", server = server, port = port)
@@ -59,7 +82,7 @@ df_tc = df_tc %>%
     mes = month(date_vto),
     anio = year(date_vto)
   ) %>% 
-  full_join(rofexOI_ampliado, join_by(mes == mes, anio == anio, date ==date)) 
+  full_join(rofexOI_ampliado, join_by(mes == mes, anio == anio, date ==date))
 
 df_grafo = df_tc
 
@@ -68,7 +91,7 @@ df_tc = df_tc %>%
   select(-mes, -anio, -date_vto, -EOM)
   
 tipos_cambio = fx %>% distinct(date, .keep_all = T) %>% filter(date == max(date)) %>% select(-Canje)
-valores = finance::get_bandas(end_date = Sys.Date()) %>% filter(date == Sys.Date())
+valores = bandas %>% filter(date == Sys.Date()) %>% select(-tasa_mensual)
 footer = paste0("Último dato: ", max(df_tc$date), " | ", paste0("MEP: ", round(pull(tipos_cambio, 2),2), " | CCL: ", round(pull(tipos_cambio, 3),2), " | A3500: ", round(pull(tipos_cambio, 4),2), 
                                                                 " | Banda Inferior: ", round(valores$banda_inferior, 2), " | Banda Superior: ", round(valores$banda_superior, 2)))
 
@@ -82,7 +105,7 @@ df_out <- df_tc %>%
     BANDA_INFERIOR = banda_inferior,
     BANDA_SUPERIOR = banda_superior,
     tc_MEP         = tc_mepAL,
-    tc_CCL         = tc_ccl3,
+    tc_CCL         = tc_ccl,
     tc_SPOT_A3500  = tc_A3500,
     LAST           = settlement,
     CONTRATO       = symbol
@@ -141,7 +164,7 @@ grabaTabla2(variable = t_lecap_px_indiferencia, path = path)
   
   ## ── 2. Paleta de colores (opcional) ──────────────────────────────────
   col_tc <- c(tc_mepAL = .paleta[1],
-              tc_ccl3  = .paleta[2],
+              tc_ccl  = .paleta[2],
               tc_A3500 = .paleta[3])
   
   ## ── 3. Armado del gráfico ────────────────────────────────────────────
@@ -149,8 +172,8 @@ grabaTabla2(variable = t_lecap_px_indiferencia, path = path)
   max_fecha = max(max(df_grafo$date_vto, na.rm = TRUE) ,   max(df_grafo$EOM, na.rm = TRUE) )
   
   
-  p <- finance::get_bandas("2027-02-01") %>% 
-    filter(date >= min_fecha & date <= max_fecha) %>%
+  p <- bandas %>% filter(date <= max_fecha) %>% 
+    filter(date >= Sys.Date()) %>% 
     ggplot(aes(x = date)) +
     theme_usado() +
     
@@ -162,9 +185,9 @@ grabaTabla2(variable = t_lecap_px_indiferencia, path = path)
     geom_point(data = df_grafo_tc,
                aes(x = date_vto, y = valor, colour = serie),
                size = 2.8) +
-    geom_text_repel(data = df_grafo_tc %>% distinct(ticker, .keep_all = TRUE),
+    geom_text_repel(data = df_grafo_tc %>% filter(serie == "tc_ccl") %>% distinct(ticker, .keep_all = TRUE),
                     aes(x = date_vto, y = valor, label = ticker, colour = serie, ),
-                    size = 3, family = "sans", show.legend = FALSE, max.overlaps = Inf) +
+                    size = 3, family = "sans", show.legend = FALSE, max.overlaps = Inf, nudge_y = 100 ) +
     
     # puntos + etiquetas: settlement
     geom_point(data = df_settle,
@@ -178,7 +201,7 @@ grabaTabla2(variable = t_lecap_px_indiferencia, path = path)
     
     # TC actuales
     geom_hline(data = tipos_cambio, aes(yintercept = mepAL), linetype = "dashed", colour = col_tc["tc_mepAL"]) +
-    geom_hline(data = tipos_cambio, aes(yintercept = ccl3), linetype = "dashed", colour = col_tc["tc_ccl3"]) +
+    geom_hline(data = tipos_cambio, aes(yintercept = ccl), linetype = "dashed", colour = col_tc["tc_ccl3"]) +
     geom_hline(data = tipos_cambio, aes(yintercept = A3500), linetype = "dashed", colour = col_tc["tc_A3500"]) +
     
     scale_x_date(date_breaks="1 month", label = scales::label_date("%m-%y")) +
