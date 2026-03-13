@@ -1,76 +1,94 @@
 library(functions)
 
+# pass gcloud server: "Solo_lee1$"
+# pass medina server: "solo_lee"
+
 # Config origen
-source_server <- "medina"
-source_port <- 12259
+source_cfg <- list(
+  server = "localhost",
+  port = 5432,
+  db = "data",
+  user = "readonly_user",
+  password = "Solo_lee1$"
+)
 
 # Config destino
-dest_server <- "localhost"
-dest_port <- 5432
-dest_db <- "data"
-dest_password <- "Postgresql-1"
+dest_cfg <- list(
+  server = "local",
+  port = 5432,
+  db = "data",
+  user = "postgres",
+  password = "prometeo"
+)
 
 # Tablas detectadas en repo + paquetes propios
+# tablas <- c(
+#   "A3500",
+#   "bmBCRA",
+#   "calendarioFeriados",
+#   "calendario_feriados_usa",
+#   "caucionesBYMA",
+#   "ccl",
+#   "comprasMULCBCRA",
+#   "datos_infla_be",
+#   "forex2",
+#   "historical_prices",
+#   "historico_bopreales",
+#   "historico_lecaps",
+#   "historico_tamar",
+#   "precios_bonos_cer",
+#   "precios_bonos_pesos",
+#   "precios_dl",
+#   "precios_intradiarios",
+#   "reservas_scrape",
+#   "riesgo_pais",
+#   "rofexHis",
+#   "sectores",
+#   "serieDiaria",
+#   "sets",
+#   "tamar",
+#   "USCPI",
+#   "vencTitulos",
+#   "bonds",
+#   "bond_cashflows",
+#   "index_types",
+#   "day_count_convention",
+#   "depositos",
+#   "CER",
+#   "IPCIndec",
+#   "lecaps",
+#   "yields_api_keys"
+# )
+
 tablas <- c(
   "A3500",
-  "bmBCRA",
-  "calendarioFeriados",
-  "calendario_feriados_usa",
-  "caucionesBYMA",
   "ccl",
   "comprasMULCBCRA",
-  "datos_infla_be",
-  "forex2",
-  "historical_prices",
-  "historico_bopreales",
-  "historico_lecaps",
-  "historico_tamar",
-  "precios_bonos_cer",
-  "precios_bonos_pesos",
-  "precios_dl",
-  "precios_intradiarios",
-  "reservas_scrape",
-  "riesgo_pais",
-  "rofexHis",
-  "sectores",
-  "serieDiaria",
+  "forex",
   "sets",
   "tamar",
-  "USCPI",
   "vencTitulos",
   "bonds",
   "bond_cashflows",
-  "index_types",
-  "day_count_convention",
-  "depositos",
-  "CER",
-  "IPCIndec",
   "lecaps",
   "yields_api_keys"
 )
-
 for (nombre_tabla in tablas) {
   message(sprintf("Migrando tabla: %s", nombre_tabla))
   
-  tabla <- dbGetTable(
-    table = nombre_tabla,
-    server = source_server,
-    port = source_port,
-    user = "readonly_user",
-    password = "solo_lee"
+  source_args <- source_cfg[names(source_cfg) %in% names(formals(functions::dbGetTable))]
+  tabla <- do.call(
+    functions::dbGetTable,
+    c(list(table = nombre_tabla), source_args)
   )
   
-  if (nombre_tabla == "forex2") {
-    nombre_tabla = "forex"
-  }
+  # if (nombre_tabla == "forex2") {
+  #   nombre_tabla = "forex"
+  # }
   
-  dbWriteDF(
-    table = nombre_tabla,
-    df = tabla,
-    port = dest_port,
-    server = dest_server,
-    overwrite = TRUE,
-    password = dest_password,
-    db = dest_db
+  dest_args <- dest_cfg[names(dest_cfg) %in% names(formals(functions::dbWriteDF))]
+  do.call(
+    functions::dbWriteDF,
+    c(list(table = nombre_tabla, df = tabla, overwrite = TRUE), dest_args)
   )
 }

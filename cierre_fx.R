@@ -142,6 +142,12 @@ functions::log_msg(
   "INFO",
   log_file = log_file
 )
+saveRDS(fx, file.path(path, "fx.rds"))
+functions::log_msg(
+  "fx guardada en /home/jmt/cierre-jornada/fx.rds",
+  "INFO",
+  log_file = log_file
+)
 
 ### BRECHA
 valores = fx %>% filter(

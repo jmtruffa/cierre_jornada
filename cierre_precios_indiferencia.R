@@ -1,6 +1,25 @@
 ######## Indiferencia
 ## tiene que ser corrido el final, cuando fx (brecha), curva_lecaps (varTasasLecap) y rofexOI (intAbiertoRofex) ya estén disponibles
 ###
+# levanto curva_lecaps
+curva_lecaps_path <- file.path(path, "curva_lecaps.rds")
+if (!file.exists(curva_lecaps_path)) {
+  warning(sprintf("No existe %s. Ejecutá cierre_lecaps_bonospesos.R para generarlo.",
+                  curva_lecaps_path))
+  curva_lecaps <- tibble::tibble()
+} else {
+  curva_lecaps <- readRDS(curva_lecaps_path)
+}
+
+# levanto fx
+fx_path <- file.path(path, "fx.rds")
+if (!file.exists(fx_path)) {
+  warning(sprintf("No existe %s. Ejecutá cierre_fx.R para generarlo.",
+                  fx_path))
+  fx <- tibble::tibble()
+} else {
+  fx <- readRDS(fx_path)
+}
 
 df_tc <-
   curva_lecaps %>% 
@@ -25,7 +44,9 @@ df_tc <-
 # tmpA3$date = as.Date(tmpA3$date)
 # tmpA3$EOM = as.Date(tmpA3$EOM)
 # rofexOI = rofexOI %>% add_row(tmpA3) 
-rofexOI_ampliado = rofexOI %>% 
+rofexH = functions::dbGetTable(table = "rofexHis", server = server, port = port)
+
+rofexOI_ampliado = rofexH %>% 
   mutate(
     mes = month(EOM),
     anio = year(EOM)
