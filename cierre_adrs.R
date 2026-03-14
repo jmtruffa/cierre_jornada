@@ -30,7 +30,24 @@ varADR = function(tickers, date2) {
   
   # Filter for the specified dates
   prices_filtered = prices %>%
-    filter(date %in% c(dateYTD, date1d, date5d, date30d, date2))
+    filter(date %in% c(dateYTD, date1d, date5d, date30d, date2)) %>% 
+    filter(!is.na(adjusted)) # esto lo agregué por que traía para el 2026-03-13 dos lineas por ticker
+  
+  #############
+  ## diagnostico
+  # Filter for the specified dates
+  # prices_filtered = prices %>%
+  #   filter(date %in% c(dateYTD, date1d, date5d, date30d, date2))
+  # 
+  # # *** DIAGNÓSTICO - VER DUPLICADOS ***
+  # duplicados = prices_filtered %>%
+  #   dplyr::summarise(n = dplyr::n(), .by = c(symbol, date)) %>%
+  #   dplyr::filter(n > 1L)
+  # 
+  # print(duplicados)   # <-- esto te va a mostrar el problema
+  # stop("Revisá duplicados arriba antes de continuar")  # frena la ejecución
+  
+  ##########################
   
   # Spread the data to have separate columns for each date's prices
   price_comparison = prices_filtered %>%
