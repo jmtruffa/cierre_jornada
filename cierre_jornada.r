@@ -277,6 +277,7 @@ safe_source(file.path(path_source, 'cierre_monedas.R'))
 safe_source(file.path(path_source, 'cierre_indices.R'))
 safe_source(file.path(path_source, 'cierre_dxy_tnx.R'))
 safe_source(file.path(path_source, 'cierre_adrs.R'))
+safe_source(file.path(path_source, 'cierre_panel_etfs.R'))
 safe_source(file.path(path_source, 'cierre_merval.R'))
 
 #######################################################################
