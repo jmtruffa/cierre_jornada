@@ -34,8 +34,8 @@ mrv = getMerval(
   dplyr::mutate(ticker = "Merval CCL") %>% 
   dplyr::relocate(date, ticker, price)
 
-mrv = mrv %>% 
-  dplyr::distinct(date, .keep_all = TRUE)
+mrv = mrv %>% drop_na(price)
+  #dplyr::distinct(merval, .keep_all = TRUE)
 
 tickers = c(tickers, "Merval CCL")
 
@@ -67,4 +67,4 @@ t_panel_adrs = finance::panel_variaciones_generico(
   sector_order = orden
 )
 
-grabaTabla2(variable = t_panel_adrs)
+grabaTabla2(variable = t_panel_adrs, path = path)
