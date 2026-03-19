@@ -313,45 +313,43 @@ safe_render(
 
 
 #######################################################################
-# 1. Comando completo de gsutil rsync
-# La ruta gsutil suele ser /usr/bin/gsutil o está en el PATH
-# Esto actualizará el bucket reportes-cierre-jornada con los archivos generados y 
-# que están en la carpeta /cierre-jornada
-gsutil_args <- c(
-  "-m",
-  "rsync",
-  "-d",
-  "-r",
-  paste0(path, "/"),
-  "gs://reportes-cierre-jornada"
+# Sincronización al bucket (gcloud storage rsync)
+# Equivale a gsutil rsync -r -d: espeja la carpeta local en GCS y borra en destino
+# lo que no exista en origen (--delete-unmatched-destination-objects).
+gcloud_storage_args <- c(
+  "storage", "rsync",
+  path,
+  "gs://reportes-cierre-jornada",
+  "--recursive",
+  "--delete-unmatched-destination-objects"
 )
 
-run_gsutil_sync <- function() {
+run_gcloud_storage_sync <- function() {
   file_count <- length(list.files(path, recursive = TRUE))
   cat(sprintf("[%s] Archivos para sync: %s", format(Sys.time(), "%F %T"), file_count),
       "\n", file = log_file, append = TRUE)
   if (file_count > 0L) {
-    msg <- sprintf("[%s] Lanzando gsutil rsync...", format(Sys.time(), "%F %T"))
+    msg <- sprintf("[%s] Lanzando gcloud storage rsync...", format(Sys.time(), "%F %T"))
     cat(msg, "\n", file = log_file, append = TRUE)
-    gsutil_out <- tryCatch(
-      system2("/usr/bin/gsutil", gsutil_args, stdout = TRUE, stderr = TRUE),
-      error = function(e) paste("ERROR al ejecutar gsutil:", conditionMessage(e))
+    gcloud_out <- tryCatch(
+      system2("/usr/bin/gcloud", gcloud_storage_args, stdout = TRUE, stderr = TRUE),
+      error = function(e) paste("ERROR al ejecutar gcloud:", conditionMessage(e))
     )
-    gsutil_status <- attr(gsutil_out, "status")
-    if (is.null(gsutil_status)) {
-      gsutil_status <- 0L
+    gcloud_status <- attr(gcloud_out, "status")
+    if (is.null(gcloud_status)) {
+      gcloud_status <- 0L
     }
-    cat(sprintf("[%s] gsutil exit code: %s", format(Sys.time(), "%F %T"), gsutil_status),
+    cat(sprintf("[%s] gcloud storage rsync exit code: %s", format(Sys.time(), "%F %T"), gcloud_status),
         "\n", file = log_file, append = TRUE)
-    if (length(gsutil_out) > 0L) {
-      cat(gsutil_out, sep = "\n", file = log_file, append = TRUE)
+    if (length(gcloud_out) > 0L) {
+      cat(gcloud_out, sep = "\n", file = log_file, append = TRUE)
       cat("\n", file = log_file, append = TRUE)
     }
   }
 }
 
 
-run_gsutil_sync()
+run_gcloud_storage_sync()
 
 functions::log_msg(
   paste("Finaliza proceso generador de cierre a las: ", Sys.time()),  
