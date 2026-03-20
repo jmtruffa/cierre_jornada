@@ -140,6 +140,7 @@ if (!res_y$ok && is.null(res_y$data)) {
           group     = "BONCER"
       )
 
+    saveRDS(boncer_dinamica, file = file.path(path, "boncer_dinamica.rds"))
 
   }
 

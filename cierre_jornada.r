@@ -252,6 +252,7 @@ safe_source(file.path(path_source, 'cierre_be_tamar.R'))
 # boncer
 safe_source(file.path(path_source, 'cierre_boncer.R'))
 safe_source(file.path(path_source, 'cierre_boncer_be.R'))
+safe_source(file.path(path_source, 'nelson_siegel.r'))
 
 #######################################################################
 # Linkers
