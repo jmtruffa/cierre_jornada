@@ -1,22 +1,24 @@
-# Curvas reales CER vía Nelson-Siegel (lee boncer_dinamica.rds generado en cierre_boncer.R)
+# Curvas reales CER vía Nelson-Siegel (datos desde tabla boncer_dinamica)
 
-boncer_rds <- file.path(path, "boncer_dinamica.rds")
-if (!file.exists(boncer_rds)) {
+boncer_dinamica <- tryCatch(
+  dbExecuteQuery(
+    query = paste0(
+      "SELECT * FROM boncer_dinamica WHERE date >= '", from_dinamica, "' ORDER BY date, ticker"
+    ),
+    server = server,
+    port = port
+  ),
+  error = function(e) NULL
+)
+
+if (is.null(boncer_dinamica) || nrow(boncer_dinamica) == 0L) {
   functions::log_msg(
-    "nelson_siegel.r: no existe boncer_dinamica.rds — se omite.",
+    "nelson_siegel.r: sin datos en tabla boncer_dinamica — se omite.",
     "WARN",
     log_file = file.path(path, "cierre.log")
   )
 } else {
-  boncer_dinamica <- readRDS(boncer_rds)
-  if (!is.data.frame(boncer_dinamica) || nrow(boncer_dinamica) == 0L) {
-    functions::log_msg(
-      "nelson_siegel.r: boncer_dinamica vacío — se omite.",
-      "WARN",
-      log_file = file.path(path, "cierre.log")
-    )
-  } else {
-    has_vol <- "volume" %in% names(boncer_dinamica)
+  has_vol <- "volume" %in% names(boncer_dinamica)
 
     # =========================
     # 1) Preparación de datos
@@ -314,5 +316,4 @@ if (!file.exists(boncer_rds)) {
         grabaGrafo2(variable = g_ns_beta2, name = "g_ns_boncer_beta2", path = path)
       }
     }
-  }
 }

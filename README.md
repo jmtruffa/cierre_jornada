@@ -59,7 +59,7 @@ Además, el render usa **`rmarkdown`** vía `rmarkdown::render()` sin `library(r
 
 ### Servicios y datos externos
 
-- **Base de datos:** `functions::setup`, `dbGetTable`, `dbExecuteQuery`, etc. (p. ej. feriados USA, `precios_bonos_cer` en `cierre_boncer.R`).
+- **Base de datos:** `functions::setup`, `dbGetTable`, `dbExecuteQuery`, `dbWriteDF`, etc. (p. ej. feriados USA, `precios_bonos_cer`, y la tabla **`boncer_dinamica`** con la serie BONCER dinámica incremental; **`nelson_siegel.r`** solo lee de esa tabla, sin `.rds`).
 - **PPI:** `methodsPPI::getPPILogin()` en `safe_ppi_login()`; si falla, se registra el error y el proceso **continúa** (`ppi_login_ok` no corta el flujo en el orquestador).
 - **Google Cloud:** CLI `gcloud` en `/usr/bin/gcloud` para `storage rsync` al bucket `gs://reportes-cierre-jornada`.
 
@@ -69,7 +69,7 @@ Además, el render usa **`rmarkdown`** vía `rmarkdown::render()` sin `library(r
 
 | Ubicación | Contenido típico |
 |-----------|-------------------|
-| **`path`** (`/home/jmt/cierre-jornada` en el código) | HTML del reporte, gráficos generados por `grabaGrafo` / `grabaGrafo2`, logs, RDS intermedios según cada script. |
+| **`path`** (`/home/jmt/cierre-jornada` en el código) | HTML del reporte, gráficos generados por `grabaGrafo` / `grabaGrafo2`, logs, RDS intermedios según cada script (la serie dinámica BONCER **no** se guarda en `.rds`; vive solo en la tabla `boncer_dinamica`). |
 | **`cierre_jornada.html`** | Informe renderizado desde `cierre_jornada.qmd`. |
 | **`cierre.log`** | Traza del proceso, errores por script, sync gcloud. |
 | **Gráficos** | Los sub-scripts llaman a helpers del entorno `functions` / `outlier` (p. ej. `grabaGrafo`, `grabaGrafo2`) escribiendo en `path`. |
@@ -77,10 +77,14 @@ Además, el render usa **`rmarkdown`** vía `rmarkdown::render()` sin `library(r
 
 ---
 
-## `boncer_dinamica.rds` y `nelson_siegel.r`
+## Tabla `boncer_dinamica` y `nelson_siegel.r`
 
-- **`cierre_boncer.R`** arma la serie dinámica de BONCER desde la tabla `precios_bonos_cer`, obtiene yields vía `functions::check_getYields`, y en el flujo exitoso guarda **`boncer_dinamica.rds`** en `path` (`saveRDS(boncer_dinamica, file = file.path(path, "boncer_dinamica.rds"))`).
-- **`nelson_siegel.r`** se ejecuta **después** de `cierre_boncer.R` y `cierre_boncer_be.R`. Lee `boncer_dinamica.rds`; si no existe o está vacío, registra advertencia en `cierre.log` y **omite** el resto. Si hay datos suficientes, ajusta curvas reales CER con Nelson–Siegel (grid de `lambda`, `lambda_best`), escribe mensajes informativos y genera gráficos con `grabaGrafo2` (p. ej. `g_ns_boncer_rmse_lambda`, `g_ns_boncer_curve_last`, factores `beta0`–`beta2`).
+- **`cierre_boncer.R`** mantiene la serie dinámica de BONCER en PostgreSQL en la tabla **`boncer_dinamica`**: `CREATE TABLE IF NOT EXISTS` y clave primaria **`(date, ticker)`**. El flujo es **incremental** respecto a `max(date)` en esa tabla:
+  - **Tabla vacía o sin máximo válido:** **bootstrap** — se leen precios de `precios_bonos_cer` con `date >= from_dinamica`, se calculan yields (y columnas asociadas) para ese rango y se insertan con `functions::dbWriteDF` (`append = TRUE`).
+  - **Tabla ya poblada:** **incremental** — solo se leen filas de `precios_bonos_cer` con **`date > max(date)`** de `boncer_dinamica`, se enriquecen y se hace **append** igual que arriba.
+  - Para gráficos en el mismo script, la serie en memoria se arma con `SELECT * FROM boncer_dinamica WHERE date >= from_dinamica` (histórico acumulado en tabla).
+- **Archivo `boncer_dinamica.rds`:** ya **no** se escribe ni se lee; la persistencia y el consumo posterior pasan **solo** por la tabla y consultas SQL.
+- **`nelson_siegel.r`** corre **después** de `cierre_boncer.R` y `cierre_boncer_be.R` (orden fijado en `cierre_jornada.r`). Carga datos **únicamente** con `SELECT * FROM boncer_dinamica WHERE date >= from_dinamica` (sin lectura de RDS ni otro fallback). Si la consulta falla o no hay filas, registra advertencia en `cierre.log` y **omite** el resto; si hay pocas filas válidas tras filtros, también puede omitir con otro mensaje. Con datos suficientes, ajusta curvas reales CER con Nelson–Siegel y genera gráficos con `grabaGrafo2`.
 
 ---
 
@@ -112,7 +116,7 @@ Rscript cierre_jornada.r false cierre_boncer.R cierre_boncer_be.R nelson_siegel.
 | `cierre_jornada.qmd` | Fuente del informe HTML; usa objetos del `.GlobalEnv` tras los `source`. |
 | Otros | Utilidades p. ej. `migrar_tablas.R` (no enlazada al pipeline principal). |
 
-El código fuente vive en `path_source`; las salidas (HTML, PNG/PDF de gráficos, `.rds`, `cierre.log`) se escriben en `path` (en el código del servidor: rutas bajo `/home/jmt/...`).
+El código fuente vive en `path_source`; las salidas (HTML, PNG/PDF de gráficos, `.rds` donde cada script lo use, `cierre.log`) se escriben en `path` (en el código del servidor: rutas bajo `/home/jmt/...`). La dinámica BONCER no añade un `.rds` propio: queda en la tabla `boncer_dinamica`.
 
 ---
 
