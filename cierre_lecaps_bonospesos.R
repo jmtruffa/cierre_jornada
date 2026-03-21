@@ -223,17 +223,178 @@ if (!bonos_pesos_prices$ok && is.null(bonos_pesos_prices$data)) {
 }
 
 ## =========================
-## 3) LECAPS DINÁMICA (solo DB → curva dinámica)
+## 3) LECAPS DINÁMICA (tabla incremental curva_lecaps_dinamica ← historico_lecaps)
 ## =========================
-lecap_dinamica <- functions::dbExecuteQuery(
-  query  = paste0("select date, ticker, price from historico_lecaps where date >= '", as.Date(from_dinamica), "'"),
-  server = server, port = port
+curva_dinamica_table <- "curva_lecaps_dinamica"
+curva_dinamica_log <- file.path(path, "cierre.log")
+
+ensure_curva_dinamica_table <- function() {
+  ddl <- "
+  CREATE TABLE IF NOT EXISTS curva_lecaps_dinamica (
+    date date NOT NULL,
+    ticker text NOT NULL,
+    price double precision,
+    vf double precision,
+    date_vto date,
+    date_liq date,
+    settle date,
+    dias360 double precision,
+    dias double precision,
+    tdirecta double precision,
+    tna double precision,
+    tea double precision,
+    tem double precision,
+    tna360 double precision,
+    tea360 double precision,
+    tem360 double precision,
+    duration double precision,
+    mduration double precision,
+    PRIMARY KEY (date, ticker)
+  );
+  "
+  tryCatch(
+    functions::dbExecuteQuery(query = ddl, server = server, port = port),
+    error = function(e) {
+      functions::log_msg(
+        paste("curva_lecaps_dinamica: no se pudo crear/verificar tabla:", conditionMessage(e)),
+        "WARN",
+        log_file = curva_dinamica_log
+      )
+    }
+  )
+}
+
+## Output de tasasLecap (no incluye `group`; si el join a `lecaps` trajera esa columna, no la persistimos).
+## Si `lecaps` en DB tuviera otras columnas extra respecto al DDL, añadirlas aquí y en ensure_curva_dinamica_table.
+curva_dinamica_persist_cols <- function(df) {
+  dplyr::select(df, -dplyr::any_of("group"))
+}
+
+ensure_curva_dinamica_table()
+
+max_curva_din <- tryCatch(
+  {
+    mx <- functions::dbExecuteQuery(
+      query = paste0("SELECT max(date) AS m FROM ", curva_dinamica_table),
+      server = server,
+      port = port
+    )
+    if (nrow(mx) == 0L) {
+      NA
+    } else {
+      v <- mx[[1]]
+      if (length(v) == 0L || all(is.na(v))) NA else as.Date(v[1])
+    }
+  },
+  error = function(e) NA
 )
 
-if (!is.null(lecap_dinamica) && nrow(lecap_dinamica) > 0) {
-  curva_lecaps_dinamica <- finance::tasasLecap(lecap_dinamica, server = server, port = port)
+if (is.null(max_curva_din) || length(max_curva_din) == 0L) {
+  max_curva_din <- NA
+}
+
+if (is.na(max_curva_din)) {
+  lecap_dinamica <- functions::dbExecuteQuery(
+    query = paste0(
+      "SELECT date, ticker, price FROM historico_lecaps WHERE date >= '",
+      as.Date(from_dinamica), "'"
+    ),
+    server = server,
+    port = port
+  )
+  if (!is.null(lecap_dinamica) && nrow(lecap_dinamica) > 0L) {
+    lecap_dinamica$date <- as.Date(lecap_dinamica$date)
+    curva_new <- finance::tasasLecap(lecap_dinamica, server = server, port = port)
+    df_save <- curva_dinamica_persist_cols(curva_new)
+    functions::dbWriteDF(
+      table = curva_dinamica_table,
+      df = df_save,
+      server = server,
+      port = port,
+      append = TRUE
+    )
+    functions::log_msg(
+      sprintf("curva_lecaps_dinamica: bootstrap insertadas %d filas.", nrow(df_save)),
+      "INFO",
+      log_file = curva_dinamica_log
+    )
+  } else {
+    functions::log_msg(
+      "LECAPS DINÁMICA: historico_lecaps vacío desde from_dinamica; sin bootstrap de curva.",
+      "WARN",
+      log_file = log_file
+    )
+  }
 } else {
-  functions::log_msg("LECAPS DINÁMICA: DB vacía desde 'from_dinamica'; curva_lecaps_dinamica queda vacía.", "WARN", log_file = log_file)
+  lecap_nuevos <- functions::dbExecuteQuery(
+    query = paste0(
+      "SELECT date, ticker, price FROM historico_lecaps WHERE date > '",
+      as.character(as.Date(max_curva_din)),
+      "' AND date >= '", as.Date(from_dinamica), "'"
+    ),
+    server = server,
+    port = port
+  )
+  if (!is.null(lecap_nuevos) && nrow(lecap_nuevos) > 0L) {
+    lecap_nuevos$date <- as.Date(lecap_nuevos$date)
+    curva_new <- finance::tasasLecap(lecap_nuevos, server = server, port = port)
+    df_save <- curva_dinamica_persist_cols(curva_new)
+    functions::dbWriteDF(
+      table = curva_dinamica_table,
+      df = df_save,
+      server = server,
+      port = port,
+      append = TRUE
+    )
+    functions::log_msg(
+      sprintf("curva_lecaps_dinamica: incremental insertadas %d filas.", nrow(df_save)),
+      "INFO",
+      log_file = curva_dinamica_log
+    )
+  } else {
+    functions::log_msg(
+      "curva_lecaps_dinamica: sin fechas nuevas en historico_lecaps — skip tasasLecap.",
+      "INFO",
+      log_file = curva_dinamica_log
+    )
+  }
+}
+
+curva_lecaps_dinamica <- tryCatch(
+  functions::dbExecuteQuery(
+    query = paste0(
+      "SELECT * FROM ", curva_dinamica_table,
+      " WHERE date >= '", as.Date(from_dinamica), "' ORDER BY date, ticker"
+    ),
+    server = server,
+    port = port
+  ),
+  error = function(e) tibble::tibble()
+)
+
+if (nrow(curva_lecaps_dinamica) > 0L) {
+  curva_lecaps_dinamica <- curva_lecaps_dinamica %>%
+    dplyr::mutate(date = as.Date(date)) %>%
+    dplyr::mutate(
+      dplyr::across(
+        dplyr::any_of(c(
+          "price", "vf", "dias360", "dias", "tdirecta", "tna", "tea", "tem",
+          "tna360", "tea360", "tem360", "duration", "mduration"
+        )),
+        as.numeric
+      )
+    )
+  for (d in c("date_vto", "date_liq", "settle")) {
+    if (d %in% names(curva_lecaps_dinamica)) {
+      curva_lecaps_dinamica[[d]] <- as.Date(curva_lecaps_dinamica[[d]])
+    }
+  }
+} else {
+  functions::log_msg(
+    "LECAPS DINÁMICA: curva vacía desde tabla curva_lecaps_dinamica.",
+    "WARN",
+    log_file = log_file
+  )
 }
 
 ## =========================
@@ -320,58 +481,70 @@ g_lecap_tna = suppressMessages(
     
 grabaGrafo(variable = g_lecap_tna, path = path)
 
-g_lecap_dinamica_tem = suppressMessages(
-  suppressWarnings(
-    curva_lecaps_dinamica %>%
-      filter(tem > 0, date>="2025-01-01") %>% 
-      ggplot(aes(x = date, y = tem, color = ticker, label = ticker)) + 
-      
-      theme_usado() +
-      geom_point() +
-      geom_line(linewidth = 1) +
-      #geom_smooth(se = F) +
-      
-      scale_x_date(date_breaks = "1 month", labels = date_format("%d-%b", locale = "es"),
-                   expand = c(0.07,0.0)) +
-      
-      scale_y_continuous(breaks = breaks_extended(10), 
-                         labels = scales::percent) +
-      
-      labs(title = "CURVA LECAP - DINAMICA",
-           subtitle = paste0('Último dato: ', tail(curva_lecaps_dinamica, n = 1) %>% pull(date)),
-           y = 'TEM',
-           x = '',
-           caption = paste0(.pie, " en base a precios de mercado."))+
-      theme(legend.title =  element_blank()) + guides(color = guide_legend(ncol = 14))
-  )
-)
-  
-  grabaGrafo(variable = g_lecap_dinamica_tem, path = path) 
+if (nrow(curva_lecaps_dinamica) > 0L) {
+  ultima_curva_din <- curva_lecaps_dinamica %>%
+    dplyr::slice_max(date, n = 1, with_ties = FALSE) %>%
+    dplyr::pull(date)
 
-g_lecap_dinamica_tna = suppressMessages(
-  suppressWarnings(
-    curva_lecaps_dinamica %>%
-      filter(tem > 0, date>="2025-01-01") %>% 
-      ggplot(aes(x = date, y = tna, color = ticker, label = ticker)) + 
-      
-      theme_usado() +
-      geom_point() +
-      geom_line(linewidth = 1) +
-      #geom_smooth(se = F) +
-      
-      scale_x_date(date_breaks = "1 month", labels = date_format("%d-%b", locale = "es"),
-                   expand = c(0.07,0.0)) +
-      
-      scale_y_continuous(breaks = breaks_extended(10), 
-                         labels = scales::percent) +
-      
-      labs(title = "CURVA LECAP - DINAMICA",
-           subtitle = paste0('Último dato: ', tail(curva_lecaps_dinamica, n = 1) %>% pull(date)),
-           y = 'TNA',
-           x = '',
-           caption = paste0(.pie, " en base a precios de mercado."))+
-      theme(legend.title =  element_blank()) + guides(color = guide_legend(ncol = 14))
+  g_lecap_dinamica_tem <- suppressMessages(
+    suppressWarnings(
+      curva_lecaps_dinamica %>%
+        dplyr::filter(tem > 0, date >= "2025-01-01") %>%
+        ggplot(aes(x = date, y = tem, color = ticker, label = ticker)) +
+        theme_usado() +
+        geom_point() +
+        geom_line(linewidth = 1) +
+        scale_x_date(
+          date_breaks = "1 month",
+          labels = date_format("%d-%b", locale = "es"),
+          expand = c(0.07, 0.0)
+        ) +
+        scale_y_continuous(
+          breaks = breaks_extended(10),
+          labels = scales::percent
+        ) +
+        labs(
+          title = "CURVA LECAP - DINAMICA",
+          subtitle = paste0("Último dato: ", ultima_curva_din),
+          y = "TEM",
+          x = "",
+          caption = paste0(.pie, " en base a precios de mercado.")
+        ) +
+        theme(legend.title = element_blank()) +
+        guides(color = guide_legend(ncol = 14))
+    )
   )
-)
-  
-  grabaGrafo(variable = g_lecap_dinamica_tna, path = path) 
+
+  grabaGrafo(variable = g_lecap_dinamica_tem, path = path)
+
+  g_lecap_dinamica_tna <- suppressMessages(
+    suppressWarnings(
+      curva_lecaps_dinamica %>%
+        dplyr::filter(tem > 0, date >= "2025-01-01") %>%
+        ggplot(aes(x = date, y = tna, color = ticker, label = ticker)) +
+        theme_usado() +
+        geom_point() +
+        geom_line(linewidth = 1) +
+        scale_x_date(
+          date_breaks = "1 month",
+          labels = date_format("%d-%b", locale = "es"),
+          expand = c(0.07, 0.0)
+        ) +
+        scale_y_continuous(
+          breaks = breaks_extended(10),
+          labels = scales::percent
+        ) +
+        labs(
+          title = "CURVA LECAP - DINAMICA",
+          subtitle = paste0("Último dato: ", ultima_curva_din),
+          y = "TNA",
+          x = "",
+          caption = paste0(.pie, " en base a precios de mercado.")
+        ) +
+        theme(legend.title = element_blank()) +
+        guides(color = guide_legend(ncol = 14))
+    )
+  )
+
+  grabaGrafo(variable = g_lecap_dinamica_tna, path = path)
+}

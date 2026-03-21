@@ -59,7 +59,7 @@ Además, el render usa **`rmarkdown`** vía `rmarkdown::render()` sin `library(r
 
 ### Servicios y datos externos
 
-- **Base de datos:** `functions::setup`, `dbGetTable`, `dbExecuteQuery`, `dbWriteDF`, etc. (p. ej. feriados USA, `precios_bonos_cer`, **`boncer_dinamica`**, y **`paridades_historicas_globales`** en [cierre_deuda_ponderada.r](cierre_deuda_ponderada.r) para precios+paridades de globales GD; **`nelson_siegel.r`** solo lee `boncer_dinamica`, sin `.rds`).
+- **Base de datos:** `functions::setup`, `dbGetTable`, `dbExecuteQuery`, `dbWriteDF`, etc. (p. ej. feriados USA, `precios_bonos_cer`, **`boncer_dinamica`**, **`paridades_historicas_globales`** ([cierre_deuda_ponderada.r](cierre_deuda_ponderada.r)), **`curva_lecaps_dinamica`** ([cierre_lecaps_bonospesos.R](cierre_lecaps_bonospesos.R)) incremental desde `historico_lecaps`; **`nelson_siegel.r`** solo lee `boncer_dinamica`, sin `.rds`).
 - **PPI:** `methodsPPI::getPPILogin()` en `safe_ppi_login()`; si falla, se registra el error y el proceso **continúa** (`ppi_login_ok` no corta el flujo en el orquestador).
 - **Google Cloud:** CLI `gcloud` en `/usr/bin/gcloud` para `storage rsync` al bucket `gs://reportes-cierre-jornada`.
 
@@ -92,6 +92,14 @@ Además, el render usa **`rmarkdown`** vía `rmarkdown::render()` sin `library(r
 - **Bootstrap** si la tabla está vacía: se pide la API desde `from` (`2020-09-01`) hasta `to` (`Sys.Date()`), se calculan paridades para todo el lote y se hace `append` con `dbWriteDF`.
 - **Incremental** si ya hay datos: `max(date)` en la tabla; si `max(date) + 1 <= to`, se pide solo ese rango a la API, se enriquece y se append; si la tabla ya está al día, no se llama a la API.
 - El análisis (ponderación y gráficos) sigue leyendo un **`SELECT * ... WHERE date >= from`** sobre la tabla, no el histórico completo recalculado en memoria cada vez.
+
+## Tabla `curva_lecaps_dinamica` ([`cierre_lecaps_bonospesos.R`](cierre_lecaps_bonospesos.R))
+
+- Resultado de `finance::tasasLecap` sobre precios LECAP de **`historico_lecaps`**, ventana dinámica `date >= from_dinamica` (variable global del orquestador). Clave primaria **`(date, ticker)`**.
+- **DDL:** la tabla se define solo con `CREATE TABLE IF NOT EXISTS` en `ensure_curva_dinamica_table` (no hay bloque de migraciones `ALTER TABLE ... ADD COLUMN`). Columnas: `date`, `ticker`, `price`, `vf`, `date_vto`, `date_liq`, `settle`, `dias360`, `dias`, `tdirecta`, `tna`, `tea`, `tem`, `tna360`, `tea360`, `tem360`, `duration`, `mduration` — alineadas al output típico de `tasasLecap` (precios, vencimientos, liquidación, plazos, tasas 365/360, duraciones).
+- **Bootstrap** si la tabla está vacía: se leen todos los precios `historico_lecaps` desde `from_dinamica`, se calcula `tasasLecap` y se hace `append` con `dbWriteDF`.
+- **Incremental** si ya hay datos: `max(date)` en `curva_lecaps_dinamica`; se toman solo filas de `historico_lecaps` con `date > max(date)` y `date >= from_dinamica`, se recalcula `tasasLecap` sobre ese subconjunto y se append (sin recalcular toda la historia en memoria).
+- Los gráficos dinámicos TEM/TNA leen la curva con **`SELECT * ... WHERE date >= from_dinamica`** sobre la tabla. **`group`** no está en el resultado de `tasasLecap`; si el join con `lecaps` aportara una columna `group`, `curva_dinamica_persist_cols` la quita antes de `dbWriteDF`. Para persistir columnas nuevas respecto al DDL actual, hay que ampliar `ensure_curva_dinamica_table` y el criterio en `curva_dinamica_persist_cols` (el script lo indica en comentario junto a esa función).
 
 ---
 
