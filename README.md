@@ -59,7 +59,7 @@ Además, el render usa **`rmarkdown`** vía `rmarkdown::render()` sin `library(r
 
 ### Servicios y datos externos
 
-- **Base de datos:** `functions::setup`, `dbGetTable`, `dbExecuteQuery`, `dbWriteDF`, etc. (p. ej. feriados USA, `precios_bonos_cer`, y la tabla **`boncer_dinamica`** con la serie BONCER dinámica incremental; **`nelson_siegel.r`** solo lee de esa tabla, sin `.rds`).
+- **Base de datos:** `functions::setup`, `dbGetTable`, `dbExecuteQuery`, `dbWriteDF`, etc. (p. ej. feriados USA, `precios_bonos_cer`, **`boncer_dinamica`**, y **`paridades_historicas_globales`** en [cierre_deuda_ponderada.r](cierre_deuda_ponderada.r) para precios+paridades de globales GD; **`nelson_siegel.r`** solo lee `boncer_dinamica`, sin `.rds`).
 - **PPI:** `methodsPPI::getPPILogin()` en `safe_ppi_login()`; si falla, se registra el error y el proceso **continúa** (`ppi_login_ok` no corta el flujo en el orquestador).
 - **Google Cloud:** CLI `gcloud` en `/usr/bin/gcloud` para `storage rsync` al bucket `gs://reportes-cierre-jornada`.
 
@@ -85,6 +85,13 @@ Además, el render usa **`rmarkdown`** vía `rmarkdown::render()` sin `library(r
   - Para gráficos en el mismo script, la serie en memoria se arma con `SELECT * FROM boncer_dinamica WHERE date >= from_dinamica` (histórico acumulado en tabla).
 - **Archivo `boncer_dinamica.rds`:** ya **no** se escribe ni se lee; la persistencia y el consumo posterior pasan **solo** por la tabla y consultas SQL.
 - **`nelson_siegel.r`** corre **después** de `cierre_boncer.R` y `cierre_boncer_be.R` (orden fijado en `cierre_jornada.r`). Carga datos **únicamente** con `SELECT * FROM boncer_dinamica WHERE date >= from_dinamica` (sin lectura de RDS ni otro fallback). Si la consulta falla o no hay filas, registra advertencia en `cierre.log` y **omite** el resto; si hay pocas filas válidas tras filtros, también puede omitir con otro mensaje. Con datos suficientes, ajusta curvas reales CER con Nelson–Siegel y genera gráficos con `grabaGrafo` (mismo helper que el resto del cierre, envuelto en `cierre_jornada.r`).
+
+## Tabla `paridades_historicas_globales` ([`cierre_deuda_ponderada.r`](cierre_deuda_ponderada.r))
+
+- Persiste el resultado de `getPPIPriceHistoryMultiple3` + `getYields` (precio y paridad por bono global) con clave **`(date, ticker)`**.
+- **Bootstrap** si la tabla está vacía: se pide la API desde `from` (`2020-09-01`) hasta `to` (`Sys.Date()`), se calculan paridades para todo el lote y se hace `append` con `dbWriteDF`.
+- **Incremental** si ya hay datos: `max(date)` en la tabla; si `max(date) + 1 <= to`, se pide solo ese rango a la API, se enriquece y se append; si la tabla ya está al día, no se llama a la API.
+- El análisis (ponderación y gráficos) sigue leyendo un **`SELECT * ... WHERE date >= from`** sobre la tabla, no el histórico completo recalculado en memoria cada vez.
 
 ---
 

@@ -33,34 +33,195 @@ globales_db <- functions::dbExecuteQuery(
 globales_db <- globales_db %>%
   mutate(ticker = paste0(ticker, "D"))
 
-## 3) Traemos los precios
+## 3) Precios + paridades (tabla incremental paridades_historicas_globales)
 getPPILogin()
 from = "2020-09-01"
 to = Sys.Date()
 settlement = "A-24HS"
-preciosDeuda = getPPIPriceHistoryMultiple3(
-  token$token, 
-  ticker = as.vector(globales_db %>% distinct(ticker) %>% pull(ticker)), 
-  type = rep("BONOS",6), 
-  from = from, 
-  to = to, 
-  settlement = settlement)
-#preciosDeuda
-preciosDeuda = preciosDeuda[[1]] %>% select(ticker, date, price)
-
-
-## 4) Vamos ahora a traer las paridades de cada uno
 comi = 0
-cal <- create.calendar('cal', functions::getFeriados(server = server, port = port), weekdays = c('saturday','sunday'))
-preciosDeuda <- preciosDeuda %>% mutate(ticker = sub("D$", "", ticker))
-paridades = getYields(preciosDeuda$ticker,
-                        settlementDate = as.character(bizdays::offset(preciosDeuda$date, ifelse(settlement == "INMEDIATA", 0, 1), cal = cal)),
-                        precios = preciosDeuda$price,
-                        initialFee = comi,
-                        endpoint = 'yield')
-preciosDeuda = cbind(preciosDeuda, paridades)
+cal <- bizdays::create.calendar(
+  "cal",
+  functions::getFeriados(server = server, port = port),
+  weekdays = c("saturday", "sunday")
+)
 
+tickers_glob <- as.vector(globales_db %>% distinct(ticker) %>% pull(ticker))
+types_glob <- rep("BONOS", length(tickers_glob))
 
+paridades_hist_table <- "paridades_historicas_globales"
+paridades_hist_log <- file.path(path, "cierre.log")
+
+ensure_paridades_hist_table <- function() {
+  ddl <- "
+  CREATE TABLE IF NOT EXISTS paridades_historicas_globales (
+    date date NOT NULL,
+    ticker text NOT NULL,
+    price double precision,
+    parity double precision,
+    yield double precision,
+    mduration double precision,
+    duration double precision,
+    maturity date,
+    PRIMARY KEY (date, ticker)
+  );
+  "
+  tryCatch(
+    functions::dbExecuteQuery(query = ddl, server = server, port = port),
+    error = function(e) {
+      functions::log_msg(
+        paste("paridades_historicas_globales: no se pudo crear/verificar tabla:", conditionMessage(e)),
+        "WARN",
+        log_file = paridades_hist_log
+      )
+    }
+  )
+}
+
+paridades_persist_cols <- function(df) {
+  cols <- c(
+    "date", "ticker", "price", "parity", "yield", "mduration", "duration", "maturity"
+  )
+  dplyr::select(df, dplyr::any_of(cols))
+}
+
+enrich_paridades <- function(precios_chunk) {
+  precios_chunk <- precios_chunk %>%
+    dplyr::mutate(ticker = sub("D$", "", ticker))
+  paridades <- getYields(
+    precios_chunk$ticker,
+    settlementDate = as.character(bizdays::offset(
+      precios_chunk$date,
+      ifelse(settlement == "INMEDIATA", 0, 1),
+      cal = cal
+    )),
+    precios = precios_chunk$price,
+    initialFee = comi,
+    endpoint = "yield"
+  )
+  out <- cbind(precios_chunk, paridades) %>% tibble::as_tibble()
+  if ("maturity" %in% names(out)) {
+    out$maturity <- as.Date(out$maturity)
+  }
+  out
+}
+
+ensure_paridades_hist_table()
+
+max_paridades <- tryCatch(
+  {
+    mx <- functions::dbExecuteQuery(
+      query = paste0("SELECT max(date) AS m FROM ", paridades_hist_table),
+      server = server,
+      port = port
+    )
+    if (nrow(mx) == 0L) {
+      NA
+    } else {
+      v <- mx[[1]]
+      if (length(v) == 0L || all(is.na(v))) NA else as.Date(v[1])
+    }
+  },
+  error = function(e) NA
+)
+
+if (is.null(max_paridades) || length(max_paridades) == 0L) {
+  max_paridades <- NA
+}
+
+if (is.na(max_paridades)) {
+  preciosDeuda <- getPPIPriceHistoryMultiple3(
+    token$token,
+    ticker = tickers_glob,
+    type = types_glob,
+    from = from,
+    to = to,
+    settlement = settlement
+  )[[1]] %>%
+    dplyr::select(ticker, date, price)
+  if (nrow(preciosDeuda) > 0L) {
+    preciosDeuda <- enrich_paridades(preciosDeuda)
+    df_save <- paridades_persist_cols(preciosDeuda)
+    functions::dbWriteDF(
+      table = paridades_hist_table,
+      df = df_save,
+      server = server,
+      port = port,
+      append = TRUE
+    )
+    functions::log_msg(
+      sprintf("paridades_historicas_globales: bootstrap insertadas %d filas.", nrow(df_save)),
+      "INFO",
+      log_file = paridades_hist_log
+    )
+  }
+} else {
+  from_api <- as.Date(max_paridades) + 1
+  if (from_api <= to) {
+    precios_nuevos <- getPPIPriceHistoryMultiple3(
+      token$token,
+      ticker = tickers_glob,
+      type = types_glob,
+      from = as.character(from_api),
+      to = to,
+      settlement = settlement
+    )[[1]] %>%
+      dplyr::select(ticker, date, price)
+    if (nrow(precios_nuevos) > 0L) {
+      precios_nuevos <- enrich_paridades(precios_nuevos)
+      df_save <- paridades_persist_cols(precios_nuevos)
+      functions::dbWriteDF(
+        table = paridades_hist_table,
+        df = df_save,
+        server = server,
+        port = port,
+        append = TRUE
+      )
+      functions::log_msg(
+        sprintf("paridades_historicas_globales: incremental insertadas %d filas.", nrow(df_save)),
+        "INFO",
+        log_file = paridades_hist_log
+      )
+    } else {
+      functions::log_msg(
+        "paridades_historicas_globales: sin filas nuevas en API (incremental).",
+        "INFO",
+        log_file = paridades_hist_log
+      )
+    }
+  } else {
+    functions::log_msg(
+      "paridades_historicas_globales: tabla al día respecto a to — sin fetch API.",
+      "INFO",
+      log_file = paridades_hist_log
+    )
+  }
+}
+
+preciosDeuda <- tryCatch(
+  functions::dbExecuteQuery(
+    query = paste0(
+      "SELECT * FROM ", paridades_hist_table,
+      " WHERE date >= '", from, "' ORDER BY date, ticker"
+    ),
+    server = server,
+    port = port
+  ),
+  error = function(e) tibble::tibble()
+)
+
+if (nrow(preciosDeuda) > 0L) {
+  preciosDeuda <- preciosDeuda %>%
+    dplyr::mutate(date = as.Date(date)) %>%
+    dplyr::mutate(
+      dplyr::across(
+        dplyr::any_of(c("price", "parity", "yield", "mduration", "duration")),
+        as.numeric
+      )
+    )
+  if ("maturity" %in% names(preciosDeuda)) {
+    preciosDeuda$maturity <- as.Date(preciosDeuda$maturity)
+  }
+}
 
 ## 5) Calcular ponderadores EXACTAMENTE como en tu tibble original --------
 ##    Es decir: ponderación = outStand / sum(outStand) *dentro de cada tramo*
@@ -109,12 +270,12 @@ calculate_ytd <- function(df) {
 
 preciosPond =  calculate_ytd(preciosPond)
 # variaciones serie ponderada
-preciosPond %>% 
-  mutate(varD = (paridad_ponderada / lag(paridad_ponderada) - 1) * 100, 
-         varS = (paridad_ponderada / lag(paridad_ponderada, n=5) - 1) * 100
-         ) %>% 
-  relocate(date, paridad_ponderada, varD, varS, ytd) %>% 
-  tail(n=10)
+# preciosPond %>% 
+#   mutate(varD = (paridad_ponderada / lag(paridad_ponderada) - 1) * 100, 
+#          varS = (paridad_ponderada / lag(paridad_ponderada, n=5) - 1) * 100
+#          ) %>% 
+#   relocate(date, paridad_ponderada, varD, varS, ytd) %>% 
+#   tail(n=10)
 
 
 
