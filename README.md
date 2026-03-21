@@ -69,10 +69,10 @@ Además, el render usa **`rmarkdown`** vía `rmarkdown::render()` sin `library(r
 
 | Ubicación | Contenido típico |
 |-----------|-------------------|
-| **`path`** (`/home/jmt/cierre-jornada` en el código) | HTML del reporte, gráficos generados por `grabaGrafo` / `grabaGrafo2`, logs, RDS intermedios según cada script (la serie dinámica BONCER **no** se guarda en `.rds`; vive solo en la tabla `boncer_dinamica`). |
+| **`path`** (`/home/jmt/cierre-jornada` en el código) | HTML del reporte, gráficos generados por `grabaGrafo` (envuelto en `cierre_jornada.r`), logs, RDS intermedios según cada script (la serie dinámica BONCER **no** se guarda en `.rds`; vive solo en la tabla `boncer_dinamica`). |
 | **`cierre_jornada.html`** | Informe renderizado desde `cierre_jornada.qmd`. |
 | **`cierre.log`** | Traza del proceso, errores por script, sync gcloud. |
-| **Gráficos** | Los sub-scripts llaman a helpers del entorno `functions` / `outlier` (p. ej. `grabaGrafo`, `grabaGrafo2`) escribiendo en `path`. |
+| **Gráficos** | Los sub-scripts llaman a `grabaGrafo` (helper `functions` / `outlier`) escribiendo en `path`. |
 | **Backup** | `backup_path`: copias por fecha bajo `/home/jmt/backup-cierre-jornada/<YYYYMMDD>`. |
 
 ---
@@ -84,7 +84,7 @@ Además, el render usa **`rmarkdown`** vía `rmarkdown::render()` sin `library(r
   - **Tabla ya poblada:** **incremental** — solo se leen filas de `precios_bonos_cer` con **`date > max(date)`** de `boncer_dinamica`, se enriquecen y se hace **append** igual que arriba.
   - Para gráficos en el mismo script, la serie en memoria se arma con `SELECT * FROM boncer_dinamica WHERE date >= from_dinamica` (histórico acumulado en tabla).
 - **Archivo `boncer_dinamica.rds`:** ya **no** se escribe ni se lee; la persistencia y el consumo posterior pasan **solo** por la tabla y consultas SQL.
-- **`nelson_siegel.r`** corre **después** de `cierre_boncer.R` y `cierre_boncer_be.R` (orden fijado en `cierre_jornada.r`). Carga datos **únicamente** con `SELECT * FROM boncer_dinamica WHERE date >= from_dinamica` (sin lectura de RDS ni otro fallback). Si la consulta falla o no hay filas, registra advertencia en `cierre.log` y **omite** el resto; si hay pocas filas válidas tras filtros, también puede omitir con otro mensaje. Con datos suficientes, ajusta curvas reales CER con Nelson–Siegel y genera gráficos con `grabaGrafo2`.
+- **`nelson_siegel.r`** corre **después** de `cierre_boncer.R` y `cierre_boncer_be.R` (orden fijado en `cierre_jornada.r`). Carga datos **únicamente** con `SELECT * FROM boncer_dinamica WHERE date >= from_dinamica` (sin lectura de RDS ni otro fallback). Si la consulta falla o no hay filas, registra advertencia en `cierre.log` y **omite** el resto; si hay pocas filas válidas tras filtros, también puede omitir con otro mensaje. Con datos suficientes, ajusta curvas reales CER con Nelson–Siegel y genera gráficos con `grabaGrafo` (mismo helper que el resto del cierre, envuelto en `cierre_jornada.r`).
 
 ---
 

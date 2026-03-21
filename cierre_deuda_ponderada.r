@@ -163,7 +163,7 @@ g_deuda_pond_byma = preciosPond  %>%
   scale_color_manual(name = "", labels = c("Paridad Globales Ponderada"), values = .paleta[1]) 
   
 
-grabaGrafo2(variable = g_deuda_pond_byma, name = "g_deuda_pond_byma", path = path)
+grabaGrafo(variable = g_deuda_pond_byma, name = "g_deuda_pond_byma", path = path)
 
 
 ##########################################
@@ -232,5 +232,5 @@ g_deuda_byma_bollingerb = ggplot(preciosPondBB %>% filter(date>="2023-12-29"), a
        color = NULL)
 
 
-grabaGrafo2(variable = g_deuda_byma_bollingerb, name = "g_deuda_byma_bollingerb", path = path)
+grabaGrafo(variable = g_deuda_byma_bollingerb, name = "g_deuda_byma_bollingerb", path = path)
 

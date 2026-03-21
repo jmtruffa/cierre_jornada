@@ -180,8 +180,8 @@ if (is.null(boncer_dinamica) || nrow(boncer_dinamica) == 0L) {
             caption = paste0(.pie, " en base a precios de mercado.")
           )
 
-        grabaGrafo2(variable = g_ns_rmse_lambda, name = "g_ns_boncer_rmse_lambda", path = path)
-        grabaGrafo2(variable = g_ns_rmse_time, name = "g_ns_boncer_rmse_time", path = path)
+        grabaGrafo(variable = g_ns_rmse_lambda, name = "g_ns_boncer_rmse_lambda", path = path)
+        grabaGrafo(variable = g_ns_rmse_time, name = "g_ns_boncer_rmse_time", path = path)
 
         # ==========================================
         # 5) Estimación final con lambda_best
@@ -251,8 +251,8 @@ if (is.null(boncer_dinamica) || nrow(boncer_dinamica) == 0L) {
             caption = paste0(.pie, " en base a precios de mercado.")
           )
 
-        grabaGrafo2(variable = g_ns_curve_last, name = "g_ns_boncer_curve_last", path = path)
-        grabaGrafo2(variable = g_ns_curve_hist, name = "g_ns_boncer_curve_hist", path = path)
+        grabaGrafo(variable = g_ns_curve_last, name = "g_ns_boncer_curve_last", path = path)
+        grabaGrafo(variable = g_ns_curve_hist, name = "g_ns_boncer_curve_hist", path = path)
 
         # ==========================================
         # 7) Factores (beta0, beta1, beta2)
@@ -311,9 +311,9 @@ if (is.null(boncer_dinamica) || nrow(boncer_dinamica) == 0L) {
             caption = paste0(.pie, " en base a precios de mercado.")
           )
 
-        grabaGrafo2(variable = g_ns_beta0, name = "g_ns_boncer_beta0", path = path)
-        grabaGrafo2(variable = g_ns_beta1, name = "g_ns_boncer_beta1", path = path)
-        grabaGrafo2(variable = g_ns_beta2, name = "g_ns_boncer_beta2", path = path)
+        grabaGrafo(variable = g_ns_beta0, name = "g_ns_boncer_beta0", path = path)
+        grabaGrafo(variable = g_ns_beta1, name = "g_ns_boncer_beta1", path = path)
+        grabaGrafo(variable = g_ns_beta2, name = "g_ns_boncer_beta2", path = path)
       }
     }
 }
