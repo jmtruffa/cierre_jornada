@@ -59,7 +59,7 @@ Además, el render usa **`rmarkdown`** vía `rmarkdown::render()` sin `library(r
 
 ### Servicios y datos externos
 
-- **Base de datos:** `functions::setup`, `dbGetTable`, `dbExecuteQuery`, `dbWriteDF`, etc. (p. ej. feriados USA, `precios_bonos_cer`, **`boncer_dinamica`**, **`paridades_historicas_globales`** ([cierre_deuda_ponderada.r](cierre_deuda_ponderada.r)), **`curva_lecaps_dinamica`** ([cierre_lecaps_bonospesos.R](cierre_lecaps_bonospesos.R)) incremental desde `historico_lecaps`; **`nelson_siegel.r`** solo lee `boncer_dinamica`, sin `.rds`).
+- **Base de datos:** `functions::setup`, `dbGetTable`, `dbExecuteQuery`, `dbWriteDF`, etc. (p. ej. feriados USA, `precios_bonos_cer`, **`boncer_dinamica`**, **`paridades_historicas_globales`** ([cierre_deuda_ponderada.r](cierre_deuda_ponderada.r)), **`curva_lecaps_dinamica`** ([cierre_lecaps_bonospesos.R](cierre_lecaps_bonospesos.R)) incremental desde `historico_lecaps`, tabla **`fx`** ([cierre_fx.R](cierre_fx.R)) incremental de tipos de cambio; **`nelson_siegel.r`** solo lee `boncer_dinamica`, sin `.rds`).
 - **PPI:** `methodsPPI::getPPILogin()` en `safe_ppi_login()`; si falla, se registra el error y el proceso **continúa** (`ppi_login_ok` no corta el flujo en el orquestador).
 - **Google Cloud:** CLI `gcloud` en `/usr/bin/gcloud` para `storage rsync` al bucket `gs://reportes-cierre-jornada`.
 
@@ -100,6 +100,12 @@ Además, el render usa **`rmarkdown`** vía `rmarkdown::render()` sin `library(r
 - **Bootstrap** si la tabla está vacía: se leen todos los precios `historico_lecaps` desde `from_dinamica`, se calcula `tasasLecap` y se hace `append` con `dbWriteDF`.
 - **Incremental** si ya hay datos: `max(date)` en `curva_lecaps_dinamica`; se toman solo filas de `historico_lecaps` con `date > max(date)` y `date >= from_dinamica`, se recalcula `tasasLecap` sobre ese subconjunto y se append (sin recalcular toda la historia en memoria).
 - Los gráficos dinámicos TEM/TNA leen la curva con **`SELECT * ... WHERE date >= from_dinamica`** sobre la tabla. **`group`** no está en el resultado de `tasasLecap`; si el join con `lecaps` aportara una columna `group`, `curva_dinamica_persist_cols` la quita antes de `dbWriteDF`. Para persistir columnas nuevas respecto al DDL actual, hay que ampliar `ensure_curva_dinamica_table` y el criterio en `curva_dinamica_persist_cols` (el script lo indica en comentario junto a esa función).
+
+## Tabla `fx` ([`cierre_fx.R`](cierre_fx.R))
+
+- **Fuente de verdad** en PostgreSQL para un snapshot diario de tipos de cambio y ratios: clave primaria **`date`**, columnas `ccl`, `mepal`, `mepgd`, `cclgd`, `a3500`, `canje` (= `ccl / mepAL`), `brecha` (= `ccl / A3500`).
+- **Flujo:** se lee la tabla al inicio de la sección FX (tras la actualización opcional de `ccl` por horario). Solo se llama a `getPPIDLR` (y se filtran `ccl`, `A3500` / `forex`) para el **hueco** desde el día siguiente al `max(date)` en `fx` hasta `to`, con **solape** de 5 días hábiles hacia atrás para que `lag` / `lag(..., 5)` del pipeline sean coherentes. Si la tabla está vacía, el bootstrap cubre desde `from_fx` hasta `to`.
+- **Persistencia:** `append` con `dbWriteDF` solo de filas nuevas; luego se **relee** la tabla. La serie mostrada en gráficos y `set`/`tabla_fx` usa `getPPIDLR` completo `from_fx`–`to` pero **`rows_patch`** con los valores guardados en `fx` para `ccl`, MEP, CCLGD y `A3500` cuando existen en la tabla (prioridad a lo persistido).
 
 ---
 

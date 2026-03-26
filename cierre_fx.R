@@ -26,6 +26,196 @@ if (ba_now > thresh) {
 
 # una vez actualizado, usamos los valores y sacamos todo
 
+## =========================
+## Tabla fx (PostgreSQL): fuente de verdad + persistencia incremental
+## =========================
+fx_table <- "fx"
+fx_table_log <- file.path(path, "cierre.log")
+
+ensure_fx_table <- function() {
+  ddl <- "
+  CREATE TABLE IF NOT EXISTS fx (
+    date date NOT NULL PRIMARY KEY,
+    ccl double precision,
+    mepal double precision,
+    mepgd double precision,
+    cclgd double precision,
+    a3500 double precision,
+    canje double precision,
+    brecha double precision
+  );
+  "
+  tryCatch(
+    functions::dbExecuteQuery(query = ddl, server = server, port = port),
+    error = function(e) {
+      functions::log_msg(
+        paste("fx: no se pudo crear/verificar tabla:", conditionMessage(e)),
+        "WARN",
+        log_file = fx_table_log
+      )
+    }
+  )
+}
+
+ensure_fx_table()
+
+fx_db <- tryCatch(
+  {
+    df <- functions::dbGetTable(table = fx_table, server = server, port = port) %>%
+      dplyr::distinct(date, .keep_all = TRUE) %>%
+      dplyr::arrange(date)
+    if (nrow(df) > 0L) {
+      df$date <- as.Date(df$date)
+    }
+    df
+  },
+  error = function(e) {
+    tibble::tibble()
+  }
+)
+
+fx_overlap_biz <- 5L
+max_fx_db <- if (nrow(fx_db) == 0L) {
+  as.Date(NA)
+} else {
+  max(fx_db$date, na.rm = TRUE)
+}
+
+from_compute <- if (is.na(max_fx_db)) {
+  as.Date(from_fx)
+} else {
+  bizdays::add.bizdays(max_fx_db, 1L, cal)
+}
+
+from_raw <- if (is.na(max_fx_db)) {
+  bizdays::add.bizdays(as.Date(from_fx), -fx_overlap_biz, cal)
+} else {
+  bizdays::add.bizdays(from_compute, -fx_overlap_biz, cal)
+}
+from_raw <- max(from_raw, as.Date(from_fx))
+
+if (from_compute <= to) {
+  dlr_inc <- methodsPPI::getPPIDLR(from = from_raw, to = to, settle = settle) %>%
+    dplyr::mutate(mepAL = ifelse(date == as.Date("2025-09-04"), 1377, mepAL))
+
+  ccl_inc <- functions::dbGetTable(table = "ccl", server = server, port = port) %>%
+    dplyr::distinct(date, .keep_all = TRUE) %>%
+    dplyr::arrange(date) %>%
+    dplyr::filter(date >= from_raw)
+
+  query_last_inc <- "
+SELECT DISTINCT ON (\"date\")
+  \"date\",
+  \"cotizacion\" AS last_mlc
+FROM forex
+WHERE \"instrumento\" LIKE 'UST / ART%'
+  AND \"rueda\" = 'CAM1'
+  AND settle IN ('0','1','2','3','4','5')
+ORDER BY
+  \"date\",
+  CASE settle
+    WHEN '0' THEN 0
+    WHEN '1' THEN 1
+    WHEN '2' THEN 2
+    WHEN '3' THEN 3
+    WHEN '4' THEN 4
+    WHEN '5' THEN 5
+    ELSE 99
+  END;
+"
+  last_inc <- functions::dbExecuteQuery(query = query_last_inc, server = server, port = port)
+  tc_inc <- functions::dbGetTable("A3500", server = server, port = port) %>%
+    dplyr::left_join(last_inc, by = "date") %>%
+    dplyr::filter(date >= from_raw)
+
+  fx_inc <- dplyr::left_join(dlr_inc, ccl_inc, by = "date") %>%
+    dplyr::mutate(
+      dplyr::across(-c(date, Canje), ~ (. / dplyr::lag(.) - 1) * 100, .names = "varD_{.col}"),
+      dplyr::across(c(mepAL, mepGD, cclGD, ccl), ~ (. / dplyr::lag(., 5) - 1) * 100, .names = "varS_{.col}"),
+      canjeCCL = (ccl / mepAL - 1) * 100
+    ) %>%
+    dplyr::relocate(date, mepAL, mepGD, cclGD, Canje, ccl) %>%
+    dplyr::select(
+      date, mepAL, varD_mepAL, varS_mepAL, mepGD, varD_mepGD, varS_mepGD, cclGD,
+      varD_cclGD, varS_cclGD, Canje, ccl, varD_ccl, varS_ccl
+    ) %>%
+    dplyr::left_join(tc_inc, by = "date") %>%
+    dplyr::mutate(
+      brechaCCL = (ccl / A3500) - 1,
+      brechaTXT = paste0(format(round(brechaCCL * 100, 0), nsmall = 0), "%"),
+      A3500PAIS = dplyr::case_when(
+        date >= "2024-12-23" ~ A3500,
+        date >= "2024-09-01" ~ A3500 * 1.075,
+        date >= "2023-12-13" ~ A3500 * 1.175,
+        TRUE ~ A3500
+      )
+    )
+
+  df_fx_narrow <- fx_inc %>%
+    dplyr::mutate(
+      canje = ccl / mepAL,
+      brecha = dplyr::if_else(!is.na(A3500) & A3500 != 0, ccl / A3500, NA_real_)
+    ) %>%
+    dplyr::select(date, ccl, mepAL, mepGD, cclGD, A3500, canje, brecha) %>%
+    dplyr::rename(
+      mepal = mepAL,
+      mepgd = mepGD,
+      cclgd = cclGD,
+      a3500 = A3500
+    )
+
+  if (is.na(max_fx_db)) {
+    df_to_write <- dplyr::filter(df_fx_narrow, date >= as.Date(from_fx), date <= to)
+  } else {
+    df_to_write <- dplyr::filter(df_fx_narrow, date >= from_compute, date <= to)
+  }
+
+  if (nrow(df_to_write) > 0L) {
+    functions::dbWriteDF(
+      table = fx_table,
+      df = df_to_write,
+      server = server,
+      port = port,
+      dbname = dbname,
+      append = TRUE
+    )
+    functions::log_msg(
+      sprintf("fx: insertadas %d filas en tabla %s.", nrow(df_to_write), fx_table),
+      "INFO",
+      log_file = fx_table_log
+    )
+  } else {
+    functions::log_msg(
+      "fx: sin filas nuevas para persistir (ventana incremental vacía o ya al día).",
+      "INFO",
+      log_file = fx_table_log
+    )
+  }
+} else {
+  functions::log_msg(
+    sprintf(
+      "fx: tabla al día (from_compute %s > to %s); no se llama getPPIDLR incremental.",
+      as.character(from_compute), as.character(to)
+    ),
+    "INFO",
+    log_file = fx_table_log
+  )
+}
+
+fx_db <- tryCatch(
+  {
+    df <- functions::dbGetTable(table = fx_table, server = server, port = port) %>%
+      dplyr::distinct(date, .keep_all = TRUE) %>%
+      dplyr::arrange(date)
+    if (nrow(df) > 0L) {
+      df$date <- as.Date(df$date)
+    }
+    df
+  },
+  error = function(e) {
+    tibble::tibble()
+  }
+)
 
 dlr = methodsPPI::getPPIDLR(from = from_fx, to = to, settle = settle) %>% 
   # metemos fix a mano.
@@ -56,7 +246,35 @@ ORDER BY
 last = functions::dbExecuteQuery(query = query, server = server, port = port) #%>% add_row(date = Sys.Date(), last_mlc = 1240)
 tc = functions::dbGetTable("A3500", server = server, port = port) %>% left_join(last, by = "date") #%>% 
 
-fx=left_join(dlr, ccl, by = "date") %>%
+dlr_use <- dlr
+fx_ov <- NULL
+if (nrow(fx_db) > 0L) {
+  fx_ov <- fx_db %>%
+    dplyr::rename(
+      mepAL = mepal,
+      mepGD = mepgd,
+      cclGD = cclgd,
+      A3500 = a3500
+    )
+  dlr_use <- dplyr::rows_patch(
+    dlr_use,
+    fx_ov %>% dplyr::select(date, mepAL, mepGD, cclGD),
+    by = "date",
+    unmatched = "ignore"
+  )
+}
+
+fx_base <- left_join(dlr_use, ccl, by = "date")
+if (nrow(fx_db) > 0L) {
+  fx_base <- dplyr::rows_patch(
+    fx_base,
+    fx_ov %>% dplyr::select(date, ccl),
+    by = "date",
+    unmatched = "ignore"
+  )
+}
+
+fx <- fx_base %>%
   mutate(
     across(-c(date, Canje), ~ (. / lag(.) - 1) * 100, .names = "varD_{.col}"),
     across(c(mepAL, mepGD, cclGD, ccl), ~ (. / lag(., 5) - 1) * 100, .names = "varS_{.col}"),
@@ -64,7 +282,12 @@ fx=left_join(dlr, ccl, by = "date") %>%
   ) %>%
   relocate(date, mepAL, mepGD, cclGD, Canje, ccl) %>% 
   select(date, mepAL, varD_mepAL, varS_mepAL, mepGD, varD_mepGD, varS_mepGD, cclGD, varD_cclGD, varS_cclGD, Canje, ccl, varD_ccl, varS_ccl) %>% 
-  left_join(tc, by = "date") %>% 
+  left_join(tc, by = "date") %>%
+  { if (nrow(fx_db) > 0L) {
+    dplyr::rows_patch(., fx_ov %>% dplyr::select(date, A3500), by = "date", unmatched = "ignore")
+  } else {
+    .
+  }} %>%
   mutate(
     brechaCCL = (ccl / A3500) - 1,
     brechaTXT = paste0(format(round(brechaCCL * 100, 0), nsmall = 0), "%"),
@@ -78,7 +301,23 @@ fx=left_join(dlr, ccl, by = "date") %>%
     #canje = ccl / mepAL - 1
     
   )
-set = left_join(dlr, ccl, by = "date") %>% left_join(tc, by = "date") %>% select(-ccl3, -cclAL)
+set <- left_join(dlr_use, ccl, by = "date")
+if (nrow(fx_db) > 0L) {
+  set <- dplyr::rows_patch(
+    set,
+    fx_ov %>% dplyr::select(date, ccl),
+    by = "date",
+    unmatched = "ignore"
+  )
+}
+set <- set %>%
+  left_join(tc, by = "date") %>%
+  { if (nrow(fx_db) > 0L) {
+    dplyr::rows_patch(., fx_ov %>% dplyr::select(date, A3500), by = "date", unmatched = "ignore")
+  } else {
+    .
+  }} %>%
+  select(-ccl3, -cclAL)
 diaria = set %>% mutate(across(-c(date, Canje), ~ (. / lag(.) - 1) * 100, .names = "varD_{.col}"),)
 
 tabla_fx = set %>% 
