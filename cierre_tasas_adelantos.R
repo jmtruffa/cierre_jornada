@@ -54,22 +54,19 @@ serie_remu <- suppressMessages(
   readxl::read_xls(
     path  = tmp,
     sheet = "Estra_dia_bcos.priv",
-    range = "A2507"
+    skip = 2505
   )
 ) %>%
-  as_tibble()
+  as_tibble() %>% 
+  select(1,9) %>% 
+  filter(!is.na(1))
 unlink(tmp)
 
-if (ncol(serie_remu) >= 9) {
-  serie_remu <- serie_remu %>%
-    select(1, 9)
-  colnames(serie_remu) = c("date", "tasa_remu")
-  serie_remu$tasa_remu = serie_remu$tasa_remu / 100
-  serie_remu$date = as.Date(serie_remu$date, format = "%d/%m/%Y")
-  serie_remu = serie_remu %>% filter(!is.na(tasa_remu))
-} else {
-  serie_remu <- tibble::tibble(date = as.Date(character()), tasa_remu = numeric())
-}
+colnames(serie_remu) = c("date", "tasa_remu")
+serie_remu$tasa_remu = serie_remu$tasa_remu / 100
+serie_remu$date = as.Date(serie_remu$date, format = "%d/%m/%Y")
+serie_remu = serie_remu %>% filter(!is.na(tasa_remu))
+
 
 tasas_privados = tasas_privados %>%
   left_join(serie_remu, by = "date")
