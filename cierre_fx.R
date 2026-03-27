@@ -1,30 +1,21 @@
-# lógica para chequear si son más de las 18:05 para que actualice el valor del ccl
-# desde methodsPPI::getPPIDLR y actualice la tabla de ccl
+# lógica horaria: si pasó el umbral, más abajo se actualiza `ccl` con un slice del mismo
+# `getPPIDLR` único (no se llama a la API dos veces).
 ba_now <- as.POSIXct(Sys.time(), tz = "America/Argentina/Buenos_Aires")
 thresh <- as.POSIXct(strftime(ba_now, "%Y-%m-%d 17:10:00"),
                      tz = "America/Argentina/Buenos_Aires")
 
+from_tabla_ccl <- NULL
+from_ccl <- NULL
 if (ba_now > thresh) {
-  # vamos a tomar el valor del ccl y actualizar la ta bla
-  query = "SELECT MAX(DATE) FROM ccl"
-  from_tabla = dbExecuteQuery(query = query, server = server, port = port) %>% pull()
-  df_to_save = methodsPPI::getPPIDLR(from = add.bizdays(from_tabla, 1, cal), to = Sys.Date(), settle = "t+0") %>% 
-    select(date, ccl = cclAL, ccl3 = cclAL) %>% 
-    # truncamos en lugar de redondear
-    mutate(
-      across(-date, ~ trunc(. * 100) / 100)
-    )
-  
-  # grabamos
-  functions::dbWriteDF(table = "ccl",
-                       df = df_to_save, 
-                       port = port,
-                       server = server,
-                       dbname = dbname,
-                       append = T)
+  from_tabla_ccl <- functions::dbExecuteQuery(
+    query = "SELECT MAX(DATE) FROM ccl",
+    server = server,
+    port = port
+  ) %>% dplyr::pull(1)
+  from_ccl <- bizdays::add.bizdays(from_tabla_ccl, 1L, cal)
 }
 
-# una vez actualizado, usamos los valores y sacamos todo
+# una vez definido el contexto FX, un solo getPPIDLR cubre ccl, fx incremental y dlr principal
 
 ## =========================
 ## Tabla fx (PostgreSQL): fuente de verdad + persistencia incremental
@@ -94,9 +85,37 @@ from_raw <- if (is.na(max_fx_db)) {
 }
 from_raw <- max(from_raw, as.Date(from_fx))
 
+from_bounds <- c(as.Date(from_fx))
 if (from_compute <= to) {
-  dlr_inc <- methodsPPI::getPPIDLR(from = from_raw, to = to, settle = settle) %>%
-    dplyr::mutate(mepAL = ifelse(date == as.Date("2025-09-04"), 1377, mepAL))
+  from_bounds <- c(from_bounds, from_raw)
+}
+if (!is.null(from_ccl)) {
+  from_bounds <- c(from_bounds, from_ccl)
+}
+from_api <- min(from_bounds, na.rm = TRUE)
+
+dlr_api <- methodsPPI::getPPIDLR(from = from_api, to = to, settle = settle) %>%
+  dplyr::mutate(mepAL = ifelse(date == as.Date("2025-09-04"), 1377, mepAL))
+
+if (!is.null(from_ccl)) {
+  df_to_save <- dlr_api %>%
+    dplyr::filter(date >= from_ccl) %>%
+    dplyr::select(date, ccl = cclAL, ccl3 = cclAL) %>%
+    dplyr::mutate(
+      dplyr::across(-date, ~ trunc(. * 100) / 100)
+    )
+  functions::dbWriteDF(
+    table = "ccl",
+    df = df_to_save,
+    port = port,
+    server = server,
+    dbname = dbname,
+    append = TRUE
+  )
+}
+
+if (from_compute <= to) {
+  dlr_inc <- dplyr::filter(dlr_api, date >= from_raw)
 
   ccl_inc <- functions::dbGetTable(table = "ccl", server = server, port = port) %>%
     dplyr::distinct(date, .keep_all = TRUE) %>%
@@ -194,8 +213,8 @@ ORDER BY
 } else {
   functions::log_msg(
     sprintf(
-      "fx: tabla al día (from_compute %s > to %s); no se llama getPPIDLR incremental.",
-      as.character(from_compute), as.character(to)
+      "fx: tabla al día (from_compute %s > to %s); sin ventana incremental para persistir en %s.",
+      as.character(from_compute), as.character(to), fx_table
     ),
     "INFO",
     log_file = fx_table_log
@@ -217,9 +236,7 @@ fx_db <- tryCatch(
   }
 )
 
-dlr = methodsPPI::getPPIDLR(from = from_fx, to = to, settle = settle) %>% 
-  # metemos fix a mano.
-  dplyr::mutate(mepAL = ifelse(date == as.Date("2025-09-04"), 1377, mepAL))
+dlr <- dplyr::filter(dlr_api, date >= as.Date(from_fx))
 
 ccl = functions::dbGetTable(table = "ccl", server = server, port = port) %>% distinct(date, .keep_all = T) %>% arrange(date)
 # el query toma, si no hay cotización T+0 por que afuera es feriado, toma la T+1,2,3, hasta 5.

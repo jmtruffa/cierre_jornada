@@ -104,8 +104,8 @@ Además, el render usa **`rmarkdown`** vía `rmarkdown::render()` sin `library(r
 ## Tabla `fx` ([`cierre_fx.R`](cierre_fx.R))
 
 - **Fuente de verdad** en PostgreSQL para un snapshot diario de tipos de cambio y ratios: clave primaria **`date`**, columnas `ccl`, `mepal`, `mepgd`, `cclgd`, `a3500`, `canje` (= `ccl / mepAL`), `brecha` (= `ccl / A3500`).
-- **Flujo:** se lee la tabla al inicio de la sección FX (tras la actualización opcional de `ccl` por horario). Solo se llama a `getPPIDLR` (y se filtran `ccl`, `A3500` / `forex`) para el **hueco** desde el día siguiente al `max(date)` en `fx` hasta `to`, con **solape** de 5 días hábiles hacia atrás para que `lag` / `lag(..., 5)` del pipeline sean coherentes. Si la tabla está vacía, el bootstrap cubre desde `from_fx` hasta `to`.
-- **Persistencia:** `append` con `dbWriteDF` solo de filas nuevas; luego se **relee** la tabla. La serie mostrada en gráficos y `set`/`tabla_fx` usa `getPPIDLR` completo `from_fx`–`to` pero **`rows_patch`** con los valores guardados en `fx` para `ccl`, MEP, CCLGD y `A3500` cuando existen en la tabla (prioridad a lo persistido).
+- **Flujo:** se lee la tabla al inicio de la sección FX. Por corrida hay **una sola** llamada a `getPPIDLR`: el `from` es el mínimo entre `from_fx`, el inicio del hueco incremental en `fx` (con solape de 5 días hábiles para `lag` / `lag(..., 5)`) y, si aplica el umbral horario, el día siguiente al `max(date)` de `ccl`. De ese resultado se derivan el append a `ccl`, el pipeline incremental de `fx` y la serie principal (`dlr` filtrado a `date >= from_fx`). Se filtran `ccl` en DB, `A3500` / `forex`, etc., como antes.
+- **Persistencia:** `append` con `dbWriteDF` solo de filas nuevas; luego se **relee** la tabla. La serie mostrada en gráficos y `set`/`tabla_fx` usa el mismo lote `getPPIDLR` (filtrado a `from_fx`–`to`) con **`rows_patch`** desde `fx` para `ccl`, MEP, CCLGD y `A3500` cuando existen en la tabla (prioridad a lo persistido).
 
 ---
 
