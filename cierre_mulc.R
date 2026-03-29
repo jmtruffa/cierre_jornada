@@ -1,12 +1,12 @@
 vol_mulc_todos_plazos = "
 SELECT 
   \"forex\".date, 
-  SUM(CASE WHEN \"currency_out\" = 'UST' THEN \"monto\" ELSE 0 END)::NUMERIC AS volumen,
-  SUM(CASE WHEN \"currency_out\" = 'USMEP' THEN \"monto\" ELSE 0 END)::NUMERIC AS volumen_usmep
+  SUM(CASE WHEN TRIM(\"currency_out\") = 'UST' THEN \"monto\" ELSE 0 END)::NUMERIC AS volumen,
+  SUM(CASE WHEN TRIM(\"currency_out\") = 'USMEP' THEN \"monto\" ELSE 0 END)::NUMERIC AS volumen_usmep
 FROM 
   \"forex\"
 WHERE 
-  \"currency_out\" = 'UST' OR \"currency_out\" = 'USMEP'
+  TRIM(\"currency_out\") IN ('UST','USMEP')
 GROUP BY 
   \"forex\".date
 ORDER BY 
@@ -249,7 +249,7 @@ grabaGrafo(variable = g_mlc_demanda_mlc_puntual, path = path)
 # DEMANDA ACUMULADA COMPARADA POR RUEDAS
 # NUEVO FORMATO
 fecha_max <- max(mulc$date, na.rm = TRUE)
-fecha_inicio <- floor_date(fecha_max, "month") %m-% months(12)
+fecha_inicio <- floor_date(fecha_max, "month") %m-% months(13)
 
 meses_es <- c("Ene", "Feb", "Mar", "Abr", "May", "Jun",
               "Jul", "Ago", "Sep", "Oct", "Nov", "Dic")
@@ -257,7 +257,7 @@ meses_es <- c("Ene", "Feb", "Mar", "Abr", "May", "Jun",
 mulc_prepared <- mulc %>%
   filter(date >= fecha_inicio) %>%
   mutate(
-    demanda = volumen - comprasBCRA,
+    demanda = volumen - replace_na(comprasBCRA, 0),
     ym = floor_date(date, "month")
   ) %>%
   group_by(ym) %>%
@@ -266,10 +266,20 @@ mulc_prepared <- mulc %>%
     fila = row_number(),
     demandaAc = cumsum(demanda)
   ) %>%
-  ungroup() %>%
+  ungroup()
+
+# Descartar primer mes si está incompleto
+primer_mes <- min(mulc_prepared$ym)
+primer_fecha <- min(mulc_prepared$date[mulc_prepared$ym == primer_mes])
+if (day(primer_fecha) > 5) {
+  mulc_prepared <- mulc_prepared %>% filter(ym > primer_mes)
+}
+
+mulc_prepared <- mulc_prepared %>%
   mutate(
     mes_lbl = paste0(meses_es[month(ym)], "-", substr(year(ym), 3, 4)),
-    mes_lbl = factor(mes_lbl, levels = unique(mes_lbl[order(ym)]))
+    mes_lbl = factor(mes_lbl, levels = unique(mes_lbl[order(ym)])),
+    es_actual = ym == max(ym)
   )
 
 labels_df <- mulc_prepared %>%
@@ -279,13 +289,15 @@ labels_df <- mulc_prepared %>%
 
 n_meses <- nlevels(mulc_prepared$mes_lbl)
 
-g_mlc_demanda_mlc_acum = suppressMessages(
+g_mlc_demanda_mlc_acum <- suppressMessages(
   suppressWarnings(
     mulc_prepared %>%
       ggplot(aes(x = fila, y = demandaAc, group = mes_lbl, color = mes_lbl)) +
       theme_usado() +
-      geom_line(linewidth = 1) +
-      geom_point(size = 1) +
+      geom_line(aes(linewidth = es_actual)) +
+      geom_point(aes(size = es_actual)) +
+      scale_linewidth_manual(values = c("FALSE" = 1, "TRUE" = 2), guide = "none") +
+      scale_size_manual(values = c("FALSE" = 1, "TRUE" = 1.5), guide = "none") +
       ggrepel::geom_text_repel(
         data = labels_df,
         aes(label = mes_lbl),
@@ -323,9 +335,9 @@ g_mlc_demanda_mlc_acum = suppressMessages(
       )
   )
 )
-
+suppressMessages(
 grabaGrafo(variable = g_mlc_demanda_mlc_acum, path = path)
-
+)
 ######################################################################
 # DIVISA Y MEP EN MULC
 valores = mulc %>% 
