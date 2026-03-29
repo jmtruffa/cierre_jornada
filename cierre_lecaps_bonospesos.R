@@ -301,37 +301,32 @@ curva_dinamica_pull_date <- function(df, col) {
 ## Persistir yields desde precios LECAP (misma ruta tasasLecap → dbWriteDF)
 curva_dinamica_append_from_precios <- function(lecap_df, etapa) {
   if (is.null(lecap_df) || nrow(lecap_df) == 0L) {
+    message("[LECAPS DIN] ", etapa, ": lecap_df NULL o 0 filas, nada que hacer.")
     return(invisible(NULL))
   }
+  message("[LECAPS DIN] ", etapa, ": recibidas ", nrow(lecap_df), " filas de precios. Ejecutando tasasLecap...")
   lecap_df$date <- as.Date(lecap_df$date)
-  curva_new <- finance::tasasLecap(lecap_df, server = server, port = port)
+  curva_new <- tryCatch(
+    finance::tasasLecap(lecap_df, server = server, port = port),
+    error = function(e) {
+      message("[LECAPS DIN] ", etapa, ": ERROR en tasasLecap: ", conditionMessage(e))
+      tibble::tibble()
+    }
+  )
+  message("[LECAPS DIN] ", etapa, ": tasasLecap devolvió ", nrow(curva_new), " filas. Columnas: ", paste(names(curva_new), collapse = ", "))
   df_save <- curva_dinamica_persist_cols(curva_new)
   if (nrow(df_save) == 0L) {
-    functions::log_msg(
-      sprintf(
-        "LECAPS DINÁMICA (%s): tasasLecap devolvió 0 filas (p. ej. tras dias360 != 0); sin insertar.",
-        etapa
-      ),
-      "WARN",
-      log_file = curva_dinamica_log
-    )
+    message("[LECAPS DIN] ", etapa, ": 0 filas tras persist_cols; sin insertar.")
     return(invisible(NULL))
   }
+  message("[LECAPS DIN] ", etapa, ": insertando ", nrow(df_save), " filas en ", curva_dinamica_table, "...")
   tryCatch(
     {
       curva_dinamica_db_write(df_save)
-      functions::log_msg(
-        sprintf("curva_lecaps_dinamica: %s insertadas %d filas.", etapa, nrow(df_save)),
-        "INFO",
-        log_file = curva_dinamica_log
-      )
+      message("[LECAPS DIN] ", etapa, ": OK — ", nrow(df_save), " filas insertadas.")
     },
     error = function(e) {
-      functions::log_msg(
-        paste("curva_lecaps_dinamica: error en dbWriteDF (", etapa, "): ", conditionMessage(e), sep = ""),
-        "ERROR",
-        log_file = curva_dinamica_log
-      )
+      message("[LECAPS DIN] ", etapa, ": ERROR en dbWriteDF: ", conditionMessage(e))
     }
   )
   invisible(NULL)
