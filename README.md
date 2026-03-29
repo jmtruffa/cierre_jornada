@@ -95,11 +95,12 @@ Además, el render usa **`rmarkdown`** vía `rmarkdown::render()` sin `library(r
 
 ## Tabla `curva_lecaps_dinamica` ([`cierre_lecaps_bonospesos.R`](cierre_lecaps_bonospesos.R))
 
-- Resultado de `finance::tasasLecap` sobre precios LECAP de **`historico_lecaps`**, ventana dinámica `date >= from_dinamica` (variable global del orquestador). Clave primaria **`(date, ticker)`**.
+- Resultado de `finance::tasasLecap` sobre precios LECAP de **`historico_lecaps`**, alineado al **rango completo** de fechas en `historico_lecaps` (no limitado por `from_dinamica` al persistir). Clave primaria **`(date, ticker)`**.
 - **DDL:** la tabla se define solo con `CREATE TABLE IF NOT EXISTS` en `ensure_curva_dinamica_table` (no hay bloque de migraciones `ALTER TABLE ... ADD COLUMN`). Columnas: `date`, `ticker`, `price`, `vf`, `date_vto`, `date_liq`, `settle`, `dias360`, `dias`, `tdirecta`, `tna`, `tea`, `tem`, `tna360`, `tea360`, `tem360`, `duration`, `mduration` — alineadas al output típico de `tasasLecap` (precios, vencimientos, liquidación, plazos, tasas 365/360, duraciones).
-- **Bootstrap** si la tabla está vacía: se leen todos los precios `historico_lecaps` desde `from_dinamica`, se calcula `tasasLecap` y se hace `append` con `dbWriteDF`.
-- **Incremental** si ya hay datos: `max(date)` en `curva_lecaps_dinamica`; se toman solo filas de `historico_lecaps` con `date > max(date)` y `date >= from_dinamica`, se recalcula `tasasLecap` sobre ese subconjunto y se append (sin recalcular toda la historia en memoria).
-- Los gráficos dinámicos TEM/TNA leen la curva con **`SELECT * ... WHERE date >= from_dinamica`** sobre la tabla. **`group`** no está en el resultado de `tasasLecap`; si el join con `lecaps` aportara una columna `group`, `curva_dinamica_persist_cols` la quita antes de `dbWriteDF`. Para persistir columnas nuevas respecto al DDL actual, hay que ampliar `ensure_curva_dinamica_table` y el criterio en `curva_dinamica_persist_cols` (el script lo indica en comentario junto a esa función).
+- **Bootstrap** si la tabla está vacía: se leen **todos** los precios `historico_lecaps` (`ORDER BY date, ticker`), luego `tasasLecap` y `append` con `dbWriteDF` (si `tasasLecap` devuelve 0 filas tras `dias360 != 0`, no se inserta).
+- **Backfill** si la tabla ya tiene filas pero `min(date)` en `curva_lecaps_dinamica` es **posterior** a `min(date)` en `historico_lecaps`: se insertan los precios con `date >= min(historico)` y `date < min(curva)` (p. ej. completar 2024 si la tabla solo tenía desde 2025).
+- **Incremental** si ya hay datos: `max(date)` en `curva_lecaps_dinamica`; se toman filas de `historico_lecaps` con `date > max(date)` (sin filtrar por `from_dinamica`), se recalcula `tasasLecap` y se append.
+- Tras poblar, se relee la tabla **completa** en memoria; los gráficos dinámicos TEM/TNA filtran por **`date >= from_dinamica`** (variable global del orquestador). **`group`** no está en el resultado de `tasasLecap`; si el join con `lecaps` aportara una columna `group`, `curva_dinamica_persist_cols` la quita antes de `dbWriteDF`. Para persistir columnas nuevas respecto al DDL actual, hay que ampliar `ensure_curva_dinamica_table` y el criterio en `curva_dinamica_persist_cols` (el script lo indica en comentario junto a esa función).
 
 ## Tabla `fx` ([`cierre_fx.R`](cierre_fx.R))
 

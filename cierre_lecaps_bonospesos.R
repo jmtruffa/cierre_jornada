@@ -270,104 +270,186 @@ curva_dinamica_persist_cols <- function(df) {
   dplyr::select(df, -dplyr::any_of("group"))
 }
 
+curva_dinamica_db_write <- function(df) {
+  args <- list(
+    table  = curva_dinamica_table,
+    df     = df,
+    server = server,
+    port   = port,
+    append = TRUE
+  )
+  if (exists("dbname", inherits = TRUE)) {
+    args$dbname <- get("dbname", inherits = TRUE)
+  }
+  do.call(functions::dbWriteDF, args)
+}
+
 ensure_curva_dinamica_table()
 
-max_curva_din <- tryCatch(
-  {
-    mx <- functions::dbExecuteQuery(
-      query = paste0("SELECT max(date) AS m FROM ", curva_dinamica_table),
-      server = server,
-      port = port
+## Fecha segura desde un resultado SQL (una fila típica con min/max)
+curva_dinamica_pull_date <- function(df, col) {
+  if (is.null(df) || nrow(df) == 0L) {
+    return(as.Date(NA))
+  }
+  v <- df[[col]]
+  if (length(v) == 0L || all(is.na(v))) {
+    return(as.Date(NA))
+  }
+  as.Date(v[1])
+}
+
+## Persistir yields desde precios LECAP (misma ruta tasasLecap → dbWriteDF)
+curva_dinamica_append_from_precios <- function(lecap_df, etapa) {
+  if (is.null(lecap_df) || nrow(lecap_df) == 0L) {
+    return(invisible(NULL))
+  }
+  lecap_df$date <- as.Date(lecap_df$date)
+  curva_new <- finance::tasasLecap(lecap_df, server = server, port = port)
+  df_save <- curva_dinamica_persist_cols(curva_new)
+  if (nrow(df_save) == 0L) {
+    functions::log_msg(
+      sprintf(
+        "LECAPS DINÁMICA (%s): tasasLecap devolvió 0 filas (p. ej. tras dias360 != 0); sin insertar.",
+        etapa
+      ),
+      "WARN",
+      log_file = curva_dinamica_log
     )
-    if (nrow(mx) == 0L) {
-      NA
-    } else {
-      v <- mx[[1]]
-      if (length(v) == 0L || all(is.na(v))) NA else as.Date(v[1])
+    return(invisible(NULL))
+  }
+  tryCatch(
+    {
+      curva_dinamica_db_write(df_save)
+      functions::log_msg(
+        sprintf("curva_lecaps_dinamica: %s insertadas %d filas.", etapa, nrow(df_save)),
+        "INFO",
+        log_file = curva_dinamica_log
+      )
+    },
+    error = function(e) {
+      functions::log_msg(
+        paste("curva_lecaps_dinamica: error en dbWriteDF (", etapa, "): ", conditionMessage(e), sep = ""),
+        "ERROR",
+        log_file = curva_dinamica_log
+      )
     }
-  },
-  error = function(e) NA
+  )
+  invisible(NULL)
+}
+
+stats_hist <- tryCatch(
+  functions::dbExecuteQuery(
+    query  = "SELECT MIN(date) AS mi, MAX(date) AS mx FROM historico_lecaps",
+    server = server,
+    port   = port
+  ),
+  error = function(e) NULL
 )
 
-if (is.null(max_curva_din) || length(max_curva_din) == 0L) {
-  max_curva_din <- NA
-}
+min_hist <- curva_dinamica_pull_date(stats_hist, "mi")
+max_hist <- curva_dinamica_pull_date(stats_hist, "mx")
 
-if (is.na(max_curva_din)) {
-  lecap_dinamica <- functions::dbExecuteQuery(
-    query = paste0(
-      "SELECT date, ticker, price FROM historico_lecaps WHERE date >= '",
-      as.Date(from_dinamica), "'"
-    ),
-    server = server,
-    port = port
+if (is.na(max_hist)) {
+  functions::log_msg(
+    "LECAPS DINÁMICA: historico_lecaps sin fechas; se omite curva_lecaps_dinamica.",
+    "WARN",
+    log_file = curva_dinamica_log
   )
-  if (!is.null(lecap_dinamica) && nrow(lecap_dinamica) > 0L) {
-    lecap_dinamica$date <- as.Date(lecap_dinamica$date)
-    curva_new <- finance::tasasLecap(lecap_dinamica, server = server, port = port)
-    df_save <- curva_dinamica_persist_cols(curva_new)
-    functions::dbWriteDF(
-      table = curva_dinamica_table,
-      df = df_save,
-      server = server,
-      port = port,
-      append = TRUE
-    )
-    functions::log_msg(
-      sprintf("curva_lecaps_dinamica: bootstrap insertadas %d filas.", nrow(df_save)),
-      "INFO",
-      log_file = curva_dinamica_log
-    )
-  } else {
-    functions::log_msg(
-      "LECAPS DINÁMICA: historico_lecaps vacío desde from_dinamica; sin bootstrap de curva.",
-      "WARN",
-      log_file = log_file
-    )
-  }
 } else {
-  lecap_nuevos <- functions::dbExecuteQuery(
-    query = paste0(
-      "SELECT date, ticker, price FROM historico_lecaps WHERE date > '",
-      as.character(as.Date(max_curva_din)),
-      "' AND date >= '", as.Date(from_dinamica), "'"
-    ),
-    server = server,
-    port = port
-  )
-  if (!is.null(lecap_nuevos) && nrow(lecap_nuevos) > 0L) {
-    lecap_nuevos$date <- as.Date(lecap_nuevos$date)
-    curva_new <- finance::tasasLecap(lecap_nuevos, server = server, port = port)
-    df_save <- curva_dinamica_persist_cols(curva_new)
-    functions::dbWriteDF(
-      table = curva_dinamica_table,
-      df = df_save,
+  stats_curva <- tryCatch(
+    functions::dbExecuteQuery(
+      query = paste0("SELECT MIN(date) AS mi, MAX(date) AS mx FROM ", curva_dinamica_table),
       server = server,
-      port = port,
-      append = TRUE
+      port   = port
+    ),
+    error = function(e) NULL
+  )
+
+  min_curva <- curva_dinamica_pull_date(stats_curva, "mi")
+  max_curva <- curva_dinamica_pull_date(stats_curva, "mx")
+  curva_vacia <- is.null(stats_curva) || nrow(stats_curva) == 0L || is.na(max_curva)
+
+  if (curva_vacia) {
+    ## Bootstrap: toda la serie en historico_lecaps (from_dinamica no limita el rango persistido)
+    lecap_dinamica <- functions::dbExecuteQuery(
+      query  = "SELECT date, ticker, price FROM historico_lecaps ORDER BY date, ticker",
+      server = server,
+      port   = port
     )
-    functions::log_msg(
-      sprintf("curva_lecaps_dinamica: incremental insertadas %d filas.", nrow(df_save)),
-      "INFO",
-      log_file = curva_dinamica_log
-    )
+    if (!is.null(lecap_dinamica) && nrow(lecap_dinamica) > 0L) {
+      curva_dinamica_append_from_precios(lecap_dinamica, "bootstrap")
+    } else {
+      functions::log_msg(
+        "LECAPS DINÁMICA: historico_lecaps sin filas; sin bootstrap.",
+        "WARN",
+        log_file = log_file
+      )
+    }
   } else {
-    functions::log_msg(
-      "curva_lecaps_dinamica: sin fechas nuevas en historico_lecaps — skip tasasLecap.",
-      "INFO",
-      log_file = curva_dinamica_log
-    )
+    ## Backfill: histórico en DB empieza después del primer date en historico_lecaps (p. ej. tabla solo desde 2025)
+    if (!is.na(min_hist) && !is.na(min_curva) && min_curva > min_hist) {
+      lecap_back <- functions::dbExecuteQuery(
+        query = paste0(
+          "SELECT date, ticker, price FROM historico_lecaps WHERE date >= '",
+          as.character(min_hist),
+          "' AND date < '",
+          as.character(min_curva),
+          "' ORDER BY date, ticker"
+        ),
+        server = server,
+        port   = port
+      )
+      if (!is.null(lecap_back) && nrow(lecap_back) > 0L) {
+        functions::log_msg(
+          sprintf(
+            "LECAPS DINÁMICA: backfill desde %s hasta antes de %s (%d filas precios).",
+            min_hist, min_curva, nrow(lecap_back)
+          ),
+          "INFO",
+          log_file = curva_dinamica_log
+        )
+        curva_dinamica_append_from_precios(lecap_back, "backfill")
+        ## max_curva no sube si solo agregamos fechas anteriores; sigue siendo el tope para incremental.
+      }
+    }
+
+    ## Incremental: solo fechas nuevas en historico respecto al máximo ya persistido
+    if (!is.na(max_hist) && !is.na(max_curva) && max_hist > max_curva) {
+      lecap_nuevos <- functions::dbExecuteQuery(
+        query = paste0(
+          "SELECT date, ticker, price FROM historico_lecaps WHERE date > '",
+          as.character(as.Date(max_curva)),
+          "' ORDER BY date, ticker"
+        ),
+        server = server,
+        port   = port
+      )
+      if (!is.null(lecap_nuevos) && nrow(lecap_nuevos) > 0L) {
+        curva_dinamica_append_from_precios(lecap_nuevos, "incremental")
+      } else {
+        functions::log_msg(
+          "curva_lecaps_dinamica: max_hist > max_curva pero 0 filas de precios; revisar datos.",
+          "WARN",
+          log_file = curva_dinamica_log
+        )
+      }
+    } else if (!is.na(max_hist) && !is.na(max_curva) && max_hist <= max_curva) {
+      functions::log_msg(
+        "curva_lecaps_dinamica: al día con historico_lecaps (sin fechas nuevas).",
+        "INFO",
+        log_file = curva_dinamica_log
+      )
+    }
   }
 }
 
+## Serie completa en memoria (misma cobertura que historico_lecaps tras bootstrap/backfill/incremental).
+## Gráficos dinámicos filtran por from_dinamica si hace falta acotar el eje X.
 curva_lecaps_dinamica <- tryCatch(
   functions::dbExecuteQuery(
-    query = paste0(
-      "SELECT * FROM ", curva_dinamica_table,
-      " WHERE date >= '", as.Date(from_dinamica), "' ORDER BY date, ticker"
-    ),
+    query  = paste0("SELECT * FROM ", curva_dinamica_table, " ORDER BY date, ticker"),
     server = server,
-    port = port
+    port   = port
   ),
   error = function(e) tibble::tibble()
 )
@@ -489,7 +571,7 @@ if (nrow(curva_lecaps_dinamica) > 0L) {
   g_lecap_dinamica_tem <- suppressMessages(
     suppressWarnings(
       curva_lecaps_dinamica %>%
-        dplyr::filter(tem > 0, date >= "2025-01-01") %>%
+        dplyr::filter(tem > 0, date >= as.Date(from_dinamica)) %>%
         ggplot(aes(x = date, y = tem, color = ticker, label = ticker)) +
         theme_usado() +
         geom_point() +
@@ -520,7 +602,7 @@ if (nrow(curva_lecaps_dinamica) > 0L) {
   g_lecap_dinamica_tna <- suppressMessages(
     suppressWarnings(
       curva_lecaps_dinamica %>%
-        dplyr::filter(tem > 0, date >= "2025-01-01") %>%
+        dplyr::filter(tem > 0, date >= as.Date(from_dinamica)) %>%
         ggplot(aes(x = date, y = tna, color = ticker, label = ticker)) +
         theme_usado() +
         geom_point() +
