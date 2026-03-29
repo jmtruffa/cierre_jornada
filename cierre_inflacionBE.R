@@ -202,6 +202,61 @@ tabla_be = db_infla_be %>% as_tibble() %>%
 
 grabaTabla2(variable = tabla_be, path = path)
 
+g_inflabe_puntual = db_infla_be %>% 
+  as_tibble() %>% 
+  mutate(
+    fecha_mes = as.Date(paste0(year(fechas_tasa_nominal), "-", 
+                               month(fechas_tasa_nominal), "-01")),
+    mes = paste0(
+      tools::toTitleCase(
+        as.character(
+          lubridate::month(
+            fechas_tasa_nominal,
+            label = TRUE,
+            abbr = FALSE,
+            locale = "es_ES"
+          )
+        )
+      ),
+      " ",
+      lubridate::year(fechas_tasa_nominal)
+    )
+  ) %>% 
+  filter(fecha == datosAL) %>% 
+  arrange(fecha_mes) %>% 
+  mutate(
+    mes = factor(mes, levels = mes)
+  ) %>% 
+  select(mes, BE_inflation_mensual) %>% 
+  ggplot(aes(x = mes, y = BE_inflation_mensual)) +
+  theme_usado() +
+  geom_col(fill = .paleta[1]) +
+  geom_text(
+    aes(label = scales::percent(BE_inflation_mensual, accuracy = 0.01)),
+    vjust = -0.5
+  ) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 0.01),
+    breaks = breaks_extended(8),
+    limits = c(0, maxBEInflation * 1.7),
+    name = "Break Even Inflation TEM"
+  ) +
+  scale_x_discrete(
+    labels = function(x) sub(" ([0-9]{4})$", "\n\\1", x)
+  ) +
+  labs(
+    title = "CURVA BREAKEVEN INFLATION",
+    subtitle = paste0(
+      "Por interpolado de curvas Lecap, Boncer. Último dato: ",
+      datosAL
+    ),
+    y = "Inflación Mensual Breakeven (%)",
+    x = "",
+    caption = paste0(.pie, " en base a precios de mercado.")
+  )
+
+grabaGrafo(variable = g_inflabe_puntual, path = path)
+
 # revertimos
 Sys.setlocale("LC_TIME", "en_US.UTF-8")
 
