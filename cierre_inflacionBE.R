@@ -46,6 +46,13 @@ if (isTRUE(update)) {
     select(fecha, fechas_tasa_nominal, BE_inflation_mensual, BE_inflation_anual)
 }
 
+db_infla_be <- db_infla_be %>%
+  dplyr::mutate(
+    fecha = as.Date(fecha),
+    fechas_tasa_nominal = as.Date(fechas_tasa_nominal),
+    dias_hasta_real = as.numeric(fechas_tasa_nominal - fecha)
+  )
+
 # seteamos comas y puntos -> español
 Sys.setlocale("LC_TIME", "es_ES.UTF-8")
 
@@ -198,36 +205,54 @@ grabaTabla2(variable = tabla_be, path = path)
 # revertimos
 Sys.setlocale("LC_TIME", "en_US.UTF-8")
 
+  DIAS_MAX_A_GRAFICAR <- 180
+
   g_inflabe_dinamica = db_infla_be %>% 
-    filter(fecha >= "2024-07-01") %>% 
+    filter(dias_hasta_real <= DIAS_MAX_A_GRAFICAR) %>%
+    filter(fecha >= "2025-01-01") %>% 
     mutate(
-      mes = paste0(
+      mes_string = paste0(
         tools::toTitleCase(as.character(month(fechas_tasa_nominal, label = TRUE, abbr = FALSE))), 
         "/", year(fechas_tasa_nominal)
       )
     ) %>% 
     {
-      # Calculate unique mes values
-      unique_mes_main <- length(unique(.$mes))
-      unique_mes_labelsBE <- length(unique(labelsBE$mes))
-      combined_unique_mes <- length(unique(c(.$mes, labelsBE$mes)))
+      datos_grafico <- .
       
-      # # Debug output
-      # message("Unique mes values in main dataset: ", unique_mes_main)
-      # message("Unique mes values in labelsBE: ", unique_mes_labelsBE)
-      # message("Combined unique mes values: ", combined_unique_mes)
+      all_mes_levels <- datos_grafico %>% 
+        arrange(fechas_tasa_nominal) %>% 
+        pull(mes_string) %>% 
+        unique()
       
-      # Ensure consistent factor levels
-      all_mes_levels <- unique(c(.$mes, labelsBE$mes))
-      .$mes <- factor(.$mes, levels = all_mes_levels)
-      labelsBE$mes <- factor(labelsBE$mes, levels = all_mes_levels)
+      combined_unique_mes <- length(all_mes_levels)
+      datos_grafico$mes <- factor(datos_grafico$mes_string, levels = all_mes_levels)
       
-      ggplot(data = ., aes(x = fecha, y = BE_inflation_mensual, color = mes, group = mes, label = mes)) +
+      max_fecha_global <- max(datos_grafico$fecha)
+      labels_para_grafico <- datos_grafico %>%
+        filter(fecha == max_fecha_global) %>%
+        filter(!is.na(BE_inflation_mensual)) %>%
+        ungroup()
+      labels_para_grafico$mes <- factor(labels_para_grafico$mes_string, levels = all_mes_levels)
+      
+      ggplot(data = datos_grafico, aes(x = fecha, y = BE_inflation_mensual, color = mes, group = mes)) +
         theme_usado() +
         geom_line(linewidth = 1) +
-        ggrepel::geom_label_repel(data = labelsBE, show.legend = FALSE, nudge_x = 15, max.overlaps = 12) +
+        ggrepel::geom_label_repel(
+          data = labels_para_grafico,
+          aes(label = mes),
+          show.legend = FALSE, 
+          nudge_x = 25,
+          direction = "both",
+          box.padding = 0.5,
+          point.padding = 0.5,
+          segment.size = 0.4,
+          min.segment.length = 0,
+          max.overlaps = Inf,
+          size = 3
+        ) +
         scale_x_date(
-          date_breaks = "2 months", 
+          limits = range(datos_grafico$fecha) + c(0, 40), 
+          date_breaks = "1 month", 
           labels = label_date("%d-%b\n%Y", locale = "es"),
           expand = c(0.05, 0.0)
         ) +
@@ -237,52 +262,86 @@ Sys.setlocale("LC_TIME", "en_US.UTF-8")
           name = "Break Even Inflation"
         ) +
         scale_color_manual(
-          values = colorRampPalette(.paleta)(combined_unique_mes),  # Use combined unique mes values
+          values = colorRampPalette(.paleta)(combined_unique_mes),
           name = "Meses"
         ) +
         labs(
           title = "CURVA BREAKEVEN INFLATION",
-          subtitle = paste0('Por interpolado de curvas Lecap, Boncer. Último dato: ', max(.$fecha)),
+          subtitle = paste0('Por interpolado de curvas Lecap, Boncer. Último dato: ', max(datos_grafico$fecha)),
           y = 'Inflación Mensual Breakeven (%)',
           x = '',
-          caption = paste0(.pie, " en base a precios de mercado.")
+          caption = paste0(.pie, " en base a precios de mercado. Máx. días graficados: ", DIAS_MAX_A_GRAFICAR)
         )
     }
+  
   grabaGrafo(variable = g_inflabe_dinamica, path = path)
 
-g_inflabe_dinamica_tea = db_infla_be %>% 
-  filter(fecha >= "2024-07-01") %>% 
-  #mutate(mes = tools::toTitleCase(as.character(month(fechas_tasa_nominal, label = TRUE, abbr = FALSE)))) %>%  
-  mutate(
-    mes = paste0(
-      tools::toTitleCase(as.character(month(fechas_tasa_nominal, label = TRUE, abbr = FALSE))), 
-      "/", year(fechas_tasa_nominal)
-    )
-  ) %>% 
-  ggplot(aes(x = fecha, y=BE_inflation_anual, color = as.factor(mes), group = mes, label = mes)) +
-  theme_usado() +
-  geom_line(linewidth=1) +
+  g_inflabe_dinamica_tea = db_infla_be %>% 
+    filter(dias_hasta_real <= DIAS_MAX_A_GRAFICAR) %>%
+    filter(fecha >= "2025-01-01") %>% 
+    mutate(
+      mes_string = paste0(
+        tools::toTitleCase(as.character(month(fechas_tasa_nominal, label = TRUE, abbr = FALSE))), 
+        "/", year(fechas_tasa_nominal)
+      )
+    ) %>% 
+    {
+      datos_grafico <- .
+      
+      all_mes_levels <- datos_grafico %>% 
+        arrange(fechas_tasa_nominal) %>% 
+        pull(mes_string) %>% 
+        unique()
+      
+      combined_unique_mes <- length(all_mes_levels)
+      datos_grafico$mes <- factor(datos_grafico$mes_string, levels = all_mes_levels)
+      
+      max_fecha_global <- max(datos_grafico$fecha)
+      labels_para_grafico <- datos_grafico %>%
+        filter(fecha == max_fecha_global) %>%
+        filter(!is.na(BE_inflation_mensual)) %>%
+        ungroup()
+      labels_para_grafico$mes <- factor(labels_para_grafico$mes_string, levels = all_mes_levels)
+      
+      ggplot(data = datos_grafico, aes(x = fecha, y = BE_inflation_anual, color = mes, group = mes)) +
+        theme_usado() +
+        geom_line(linewidth = 1) +
+        ggrepel::geom_label_repel(
+          data = labels_para_grafico,
+          aes(label = mes),
+          show.legend = FALSE, 
+          nudge_x = 25,
+          direction = "both",
+          box.padding = 0.5,
+          point.padding = 0.5,
+          segment.size = 0.4,
+          min.segment.length = 0,
+          max.overlaps = Inf,
+          size = 3
+        ) +
+        scale_x_date(
+          limits = range(datos_grafico$fecha) + c(0, 40), 
+          date_breaks = "1 month", 
+          labels = label_date("%d-%b\n%Y", locale = "es"),
+          expand = c(0.05, 0.0)
+        ) +
+        scale_y_continuous(
+          labels = scales::percent_format(accuracy = 0.01),
+          breaks = breaks_extended(12),
+          name = "Break Even Inflation"
+        ) +
+        scale_color_manual(
+          values = colorRampPalette(.paleta)(combined_unique_mes),
+          name = "Meses"
+        ) +
+        labs(
+          title = "CURVA BREAKEVEN INFLATION",
+          subtitle = paste0('Por interpolado de curvas Lecap, Boncer. Último dato: ', max(datos_grafico$fecha)),
+          y = 'Inflación Mensual Breakeven (%)',
+          x = '',
+          caption = paste0(.pie, " en base a precios de mercado. Máx. días graficados: ", DIAS_MAX_A_GRAFICAR)
+        )
+    }
   
-  #ggrepel::geom_label_repel(data = labelsBE_tea, show.legend = FALSE, nudge_x = 15) +
-  
-  scale_x_date(date_breaks = "2 months", labels = label_date("%d-%b\n%Y", locale = "es"),
-               expand = c(0.15,0.0)) +
-  
-  scale_y_continuous(labels = scales::percent_format(accuracy = 0.01),
-                     breaks = breaks_extended(12),
-                     name = "Break Even Inflation") +
-  scale_color_manual(values = colorRampPalette(.paleta)(length(unique(db_infla_be$fechas_tasa_nominal))),
-                     name = "Meses") +
-  # scale_color_manual(values = c("red", "blue", "green", "orange", "purple", "black", "brown", "pink", "gray", "yellow", "cornflowerblue", "navy", "cyan", "magenta", "gold", "darkolivegreen", "turquoise", "darkred", "darkblue", "lightgray"),
-  #                    name = "Meses") +
-  
-  labs(title = "CURVA BREAKEVEN INFLATION",
-       subtitle = paste0('Por interpolado de curvas Lecap, Boncer. Último dato: ', max(db_infla_be$fecha)),
-       y = 'Inflación Mensual Breakeven (%)',
-       x = '',
-       caption = paste0(.pie, " en base a precios de mercado."))
-
-g_inflabe_dinamica_tea
-
-grabaGrafo(variable = g_inflabe_dinamica_tea, path = path)
+  grabaGrafo(variable = g_inflabe_dinamica_tea, path = path)
 
