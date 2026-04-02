@@ -44,8 +44,8 @@ full = rbind(datos, mrv) %>%
 
 calendarios <- setNames(
   c(
-    rep("calendario_feriados_usa", length(tickers) - 1),
-    "calendarioFeriados"
+    rep("cal_usa", length(tickers) - 1),
+    "cal"
   ),
   tickers
 )
