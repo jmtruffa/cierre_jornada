@@ -172,8 +172,8 @@ ORDER BY
 
   df_fx_narrow <- fx_inc %>%
     dplyr::mutate(
-      canje = ccl / mepAL,
-      brecha = dplyr::if_else(!is.na(A3500) & A3500 != 0, ccl / A3500, NA_real_)
+      canje = ccl / mepAL - 1,
+      brecha = dplyr::if_else(!is.na(A3500) & A3500 != 0, ccl / A3500 - 1, NA_real_)
     ) %>%
     dplyr::select(date, ccl, mepAL, mepGD, cclGD, A3500, canje, brecha) %>%
     dplyr::rename(
