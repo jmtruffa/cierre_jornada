@@ -135,7 +135,7 @@ repo_a3_build_upsert_sql <- function(df_db) {
   for (i in seq_len(nrow(df_db))) {
     r <- df_db[i, , drop = FALSE]
     vals[[i]] <- sprintf(
-      "('%s', %s, %s, %s, %s, %s)",
+      "('%s', %s, %s, %s, %s)",
       as.character(as.Date(r$fecha)),
       sql_double_or_null(r$volumen),
       sql_double_or_null(r$plazo),
