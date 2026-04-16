@@ -3,6 +3,7 @@ set -euo pipefail
 
 /usr/bin/Rscript /home/jmt/dev/r/outlier/cierre_jornada/cierre_jornada.r TRUE \
   cierre_caucion.R \
+  cierre_evol_repo_mae.r \
   cierre_int_rofex.R \
   cierre_rofex_curva.R \
   cierre_precios_indiferencia.R \

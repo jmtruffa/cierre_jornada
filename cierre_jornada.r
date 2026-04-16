@@ -294,6 +294,7 @@ safe_source(file.path(path_source, 'cierre_spread_legislacion.R'))
 safe_source(file.path(path_source, 'cierre_riesgo_pais.R'))
 safe_source(file.path(path_source, 'cierre_soberanos.R'))
 safe_source(file.path(path_source, 'cierre_deuda_ponderada.r'))
+safe_source(file.path(path_source, 'cierre_evol_repo_mae.r'))
 
 #######################################################################
 # Futuros

@@ -6,6 +6,8 @@ Pipeline diario en R que genera el **reporte de cierre de jornada**: descarga y 
 
 El orquestador principal es **`cierre_jornada.r`**, que carga paquetes, define helpers (`safe_source`, `safe_render`, `safe_ppi_login`), ejecuta los scripts de cierre en **orden fijo** y al final corre el render y `gcloud storage rsync`.
 
+Para contexto breve orientado a asistentes y herramientas, ver también **`AGENTS.md`**.
+
 ---
 
 ## Punto de entrada: `cierre_jornada.r`
@@ -41,8 +43,9 @@ El orden importa: variables globales (`path`, `server`, `port`, `cal`, fechas, `
 7. **Internacionales** — `cierre_commodities.R`, `cierre_etf_comparables.R`, `cierre_monedas.R`, `cierre_indices.R`, `cierre_dxy_tnx.R`, `cierre_adrs.R`, `cierre_panel_etfs.R`, `cierre_merval.R`
 8. **Agregados** — `cierre_depositos_gob.R`, `cierre_depo_dolar.R`, `cierre_tasas_adelantos.R`
 9. **Bonos** — `cierre_intradiario.R`, `cierre_spread_legislacion.R`, `cierre_riesgo_pais.R`, `cierre_soberanos.R`, `cierre_deuda_ponderada.r`
-10. **Futuros** — `cierre_int_rofex.R`, `cierre_rofex_curva.R`
-11. **Varios** — `cierre_precios_indiferencia.R`
+10. **Repo MAE (A3 Market Data)** — `cierre_evol_repo_mae.r` (persistencia en tabla PostgreSQL `repo_a3`; gráfico `g_evol_repo_bcra`)
+11. **Futuros** — `cierre_int_rofex.R`, `cierre_rofex_curva.R`
+12. **Varios** — `cierre_precios_indiferencia.R`
 
 Luego: **render** del QMD y **sync** a GCS.
 
@@ -60,7 +63,8 @@ Además, el render usa **`rmarkdown`** vía `rmarkdown::render()` sin `library(r
 
 ### Servicios y datos externos
 
-- **Base de datos:** `functions::setup`, `dbGetTable`, `dbExecuteQuery`, `dbWriteDF`, etc. (p. ej. feriados USA, `precios_bonos_cer`, **`boncer_dinamica`**, **`paridades_historicas_globales`** ([cierre_deuda_ponderada.r](cierre_deuda_ponderada.r)), **`curva_lecaps_dinamica`** ([cierre_lecaps_bonospesos.R](cierre_lecaps_bonospesos.R)) incremental desde `historico_lecaps`, tabla **`fx`** ([cierre_fx.R](cierre_fx.R)) incremental de tipos de cambio; **`nelson_siegel.r`** solo lee `boncer_dinamica`, sin `.rds`).
+- **Base de datos:** `functions::setup`, `dbGetTable`, `dbExecuteQuery`, `dbWriteDF`, etc. (p. ej. feriados USA, `precios_bonos_cer`, **`boncer_dinamica`**, **`paridades_historicas_globales`** ([cierre_deuda_ponderada.r](cierre_deuda_ponderada.r)), **`curva_lecaps_dinamica`** ([cierre_lecaps_bonospesos.R](cierre_lecaps_bonospesos.R)) incremental desde `historico_lecaps`, tabla **`fx`** ([cierre_fx.R](cierre_fx.R)) incremental de tipos de cambio, tabla **`repo_a3`** ([cierre_evol_repo_mae.r](cierre_evol_repo_mae.r)) con datos de la API MAE; **`nelson_siegel.r`** solo lee `boncer_dinamica`, sin `.rds`).
+- **API MAE (Market Data):** usada en `cierre_evol_repo_mae.r` (`api.marketdata.mae.com.ar`, endpoint repo `titulosfecha`); no es PPI.
 - **PPI:** `methodsPPI::getPPILogin()` en `safe_ppi_login()`; si falla, se registra el error y el proceso **continúa** (`ppi_login_ok` no corta el flujo en el orquestador).
 - **Google Cloud:** CLI `gcloud` en `/usr/bin/gcloud` para `storage rsync` al bucket `gs://reportes-cierre-jornada`.
 
@@ -93,6 +97,14 @@ Además, el render usa **`rmarkdown`** vía `rmarkdown::render()` sin `library(r
 - **Bootstrap** si la tabla está vacía: se pide la API desde `from` (`2020-09-01`) hasta `to` (`Sys.Date()`), se calculan paridades para todo el lote y se hace `append` con `dbWriteDF`.
 - **Incremental** si ya hay datos: `max(date)` en la tabla; si `max(date) + 1 <= to`, se pide solo ese rango a la API, se enriquece y se append; si la tabla ya está al día, no se llama a la API.
 - El análisis (ponderación y gráficos) sigue leyendo un **`SELECT * ... WHERE date >= from`** sobre la tabla, no el histórico completo recalculado en memoria cada vez.
+
+## Tabla `repo_a3` ([`cierre_evol_repo_mae.r`](cierre_evol_repo_mae.r))
+
+- **Fuente:** API **MAE Market Data** (`api.marketdata.mae.com.ar`), respuesta JSON con `details`; en R se usa `bind_rows(details)` y columnas **`fecha`**, **`volumen`**, **`plazo`**, **`tPP`**, **`tPPnBCRA`** (en PostgreSQL: `tpp`, `tppnbcra`).
+- **Persistencia:** `CREATE TABLE IF NOT EXISTS` con clave primaria **`fecha`**. Solo se guardan columnas alineadas al extracto anterior; **no** se persisten estimaciones BCRA (participación, `volumen_bcra` / `volumen_no_bcra`): se recalculan al leer con **`tasa_bcra_val`** en el script para el gráfico.
+- **Flujo:** si la tabla está vacía o sin `max(fecha)` válido, **bootstrap** desde una fecha inicial en código (`repo_a3_from`); si ya hay datos, **incremental** con solapamiento de unos días hábiles hacia atrás y **upsert** (`INSERT … ON CONFLICT (fecha) DO UPDATE`). Luego `SELECT` para serie y **`grabaGrafo(..., name = "g_evol_repo_bcra", path = path)`**. Mensajes de log con prefijo **`repo_a3:`** en `cierre.log`.
+- **Migración:** si existía una versión anterior de `repo_a3` con otras columnas, hace falta migrar o `DROP TABLE` y recrear (ver comentario en el script).
+- **Cron:** el mismo módulo se ejecuta en el batch **19:10** vía `run_cierre_1910.sh` (junto a caución, Rofex, precios indiferencia, etc.), además de integrarse al pipeline completo cuando `run_scripts` no filtra.
 
 ## Tabla `curva_lecaps_dinamica` ([`cierre_lecaps_bonospesos.R`](cierre_lecaps_bonospesos.R))
 
@@ -147,6 +159,16 @@ Rscript cierre_jornada.r false cierre_boncer.R cierre_boncer_be.R nelson_siegel.
 
 **Filtrado de scripts:** con un solo argumento que no sea `true`/`false` (p. ej. solo el nombre de un script), `run_scripts` sigue siendo `NULL` y corre el pipeline completo. Para limitar la ejecución, el primer argumento debe ser explícitamente `true` o `false` y los siguientes los basenames de los `.R`/`.r` a incluir.
 
+### Crons por horario (servidor)
+
+Scripts en la raíz del repo que llaman a `cierre_jornada.r TRUE` con una **lista acotada** de módulos (mismo mecanismo `run_scripts`); la salida suele redirigirse a logs bajo `/home/jmt/data/`:
+
+| Script | Rol típico (lista en el `.sh`; revisar el archivo) |
+|--------|-----------------------------------------------------|
+| `run_cierre_1715.sh` | Batch ~17:15 |
+| `run_cierre_1820.sh` | Batch ~18:20 |
+| `run_cierre_1910.sh` | Batch ~19:10 (incluye `cierre_evol_repo_mae.r`, caución, Rofex, precios indiferencia, etc.) |
+
 ---
 
 ## Estructura del repositorio
@@ -156,6 +178,8 @@ Rscript cierre_jornada.r false cierre_boncer.R cierre_boncer_be.R nelson_siegel.
 | `cierre_jornada.r` | Orquestador: `source` de todos los módulos, render y sync. |
 | `cierre_*.R` / `cierre_*.r` | Módulos por tema (FX, bonos, Rofex, etc.); se invocan solo desde el orquestador salvo pruebas manuales. |
 | `cierre_jornada.qmd` | Fuente del informe HTML; usa objetos del `.GlobalEnv` tras los `source`. |
+| `AGENTS.md` | Resumen de contexto para asistentes (rutas, `run_scripts`, `repo_a3`, crons); complementa este README. |
+| `run_cierre_*.sh` | Invocaciones parciales del pipeline por cron (ver sección anterior). |
 | Otros | Utilidades p. ej. `migrar_tablas.R` (no enlazada al pipeline principal). |
 
 El código fuente vive en `path_source`; las salidas (HTML, PNG/PDF de gráficos, `.rds` donde cada script lo use, `cierre.log`) se escriben en `path` (en el código del servidor: rutas bajo `/home/jmt/...`). La dinámica BONCER no añade un `.rds` propio: queda en la tabla `boncer_dinamica`.
