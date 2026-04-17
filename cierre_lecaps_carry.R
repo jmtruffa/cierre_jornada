@@ -114,7 +114,7 @@ final = left_join(df, df_ccl) %>%
 ccl3_min <- min(final$ccl3, na.rm = TRUE)
 ccl3_max <- max(final$ccl3, na.rm = TRUE)
 tea_usd_min <- min(final$tea_usd, na.rm = TRUE)
-tea_usd_max <- min(max(final$tea_usd, na.rm = TRUE), 10)
+tea_usd_max <- min(max(final$tea_usd, na.rm = TRUE), 1)
 
 # Aplicamos el gráfico con los rangos reales
 g_tasa_usd_carry = final[1:(nrow(final)),] %>% 
