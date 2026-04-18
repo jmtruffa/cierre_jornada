@@ -33,7 +33,8 @@ ensure_fx_table <- function() {
     cclgd double precision,
     a3500 double precision,
     canje double precision,
-    brecha double precision
+    brecha double precision,
+    last_mlc double precision
   );
   "
   tryCatch(
@@ -175,7 +176,7 @@ ORDER BY
       canje = ccl / mepAL - 1,
       brecha = dplyr::if_else(!is.na(A3500) & A3500 != 0, ccl / A3500 - 1, NA_real_)
     ) %>%
-    dplyr::select(date, ccl, mepAL, mepGD, cclGD, A3500, canje, brecha) %>%
+    dplyr::select(date, ccl, mepAL, mepGD, cclGD, A3500, canje, brecha, last_mlc) %>%
     dplyr::rename(
       mepal = mepAL,
       mepgd = mepGD,
