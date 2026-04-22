@@ -268,6 +268,53 @@ g_rofex_curva_solo_tem_last = datosGraficoTEM %>% arrange(date)  %>%
 
 grabaGrafo(variable = g_rofex_curva_solo_tem_last, path = path)
 
+################################
+#######SOLO TNA SIN PASES (LAST)
+datosGrafico_TNA_last = rofex %>% 
+  left_join(tc) %>% 
+  mutate(
+    impliedRateTEA_last = ((settlement / last_mlc) ^ (365 / daysToMaturity)) - 1,
+    impliedRateTNA_last = ((settlement / last_mlc) - 1) * 365 / daysToMaturity
+  ) %>% 
+  filter(date == date1 | date == date2)
+
+g_rofex_curva_solo_tna_last = datosGrafico_TNA_last %>% 
+  arrange(date) %>% 
+  ggplot(aes(x = reorder(pos, +pos), group = date, color = as.factor(date))) +
+  theme_usado() +
+  geom_point(aes(y = impliedRateTNA_last)) +
+  geom_smooth(aes(y = impliedRateTNA_last), se = FALSE, show.legend = FALSE) +
+  geom_point(aes(y = impliedRateTEA_last)) +
+  geom_smooth(aes(y = impliedRateTEA_last), se = FALSE, show.legend = FALSE) +
+  geom_label_repel(
+    aes(y = impliedRateTNA_last, label = scales::percent(impliedRateTNA_last, accuracy = 0.01)),
+    show.legend = FALSE,
+    color = "black",
+    max.overlaps = 16
+  ) +
+  geom_label_repel(
+    aes(y = impliedRateTEA_last, label = scales::percent(impliedRateTEA_last, accuracy = 0.01)),
+    show.legend = FALSE,
+    color = "black",
+    max.overlaps = 16
+  ) +
+  scale_y_continuous(
+    name = "TNA y TEA",
+    labels = label_percent(accuracy = 0.01),
+    breaks = breaks_extended(10)
+  ) +
+  scale_x_discrete(name = "Contrato desde cada fecha.") +
+  scale_color_manual(name = "Fecha", values = c(.paleta[1], .paleta[2])) +
+  guides(fill = "none") +
+  scale_fill_manual(name = "", values = c(.paleta[1], .paleta[2])) +
+  theme(legend.position.inside = c(0.95, 0.2), legend.box.background = element_rect()) +
+  labs(
+    title = "IMPLICITAS FUTUROS DLR (LAST)",
+    subtitle = paste0("Curva Implícitas de cada posición contra last MLC"),
+    caption = paste0(.pie, " en base a precios de mercado (A3)")
+  )
+grabaGrafo(variable = g_rofex_curva_solo_tna_last, path = path)
+
 ### CURVA TEM LECAP ULTIMA vs ROFEX
 # CORRER PRIMERO LAS LECAP PARA TENER CALCULADO EL DF curva_lecaps
 #venc = dbGetTable("vencTitulos", server = server, port = port)
