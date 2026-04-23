@@ -283,9 +283,9 @@ g_rofex_curva_solo_tna_last = datosGrafico_TNA_last %>%
   ggplot(aes(x = reorder(pos, +pos), group = date, color = as.factor(date))) +
   theme_usado() +
   geom_point(aes(y = impliedRateTNA_last)) +
-  geom_smooth(aes(y = impliedRateTNA_last), se = FALSE, show.legend = FALSE) +
+  geom_line(aes(y = impliedRateTNA_last, linetype = "TNA"), linewidth = 1) +
   geom_point(aes(y = impliedRateTEA_last)) +
-  geom_smooth(aes(y = impliedRateTEA_last), se = FALSE, show.legend = FALSE) +
+  geom_line(aes(y = impliedRateTEA_last, linetype = "TEA"), linewidth = 1) +
   geom_label_repel(
     aes(y = impliedRateTNA_last, label = scales::percent(impliedRateTNA_last, accuracy = 0.01)),
     show.legend = FALSE,
@@ -305,6 +305,7 @@ g_rofex_curva_solo_tna_last = datosGrafico_TNA_last %>%
   ) +
   scale_x_discrete(name = "Contrato desde cada fecha.") +
   scale_color_manual(name = "Fecha", values = c(.paleta[1], .paleta[2])) +
+  scale_linetype_manual(name = "Tasa", values = c("TNA" = "dotted", "TEA" = "solid")) +
   guides(fill = "none") +
   scale_fill_manual(name = "", values = c(.paleta[1], .paleta[2])) +
   theme(legend.position.inside = c(0.95, 0.2), legend.box.background = element_rect()) +
