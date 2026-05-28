@@ -154,19 +154,21 @@ duales = hist_lecaps %>%
   left_join(hist_lecaps %>% select(date, ticker) %>% filter(str_detect(ticker, "TT")), 
             join_by(date, ticker_join == ticker)) %>% 
   mutate(
-    tasa_emision_TEM365 = ( vf / 100) ^ ( 30 / (as.numeric(date_vto - date_liq)) ) - 1,
+    tasa_emision_TEM365 = (vf / 100) ^ (30 / (as.numeric(date_vto - date_liq))) - 1,
     tem_be_vto = ((plazo_inicial + plazo_restante) * tasa_emision_TEM365 - plazo_inicial * tamar_tem_completa) / plazo_restante,
-    tna_be_vto = (((1 + tem_be_vto) ^ 12) ^ (32/365) - 1) * (365 / 32),
+    tna_be_vto = (((1 + tem_be_vto) ^ 12) ^ (32 / 365) - 1) * (365 / 32),
+    
     vpv_15 = price * (1 + .015) ^ (as.numeric(date_vto - settle) / 30),
-    vpv_2 = price * (1 + .02) ^ (as.numeric(date_vto - settle) / 30),
-    vpv_25 = price * (1 + .025) ^ (as.numeric(date_vto - settle) / 30),
-    vpv_3 = price * (1 + .03) ^ (as.numeric(date_vto - settle) / 30),
-    vpv_35 = price * (1 + .035) ^ (as.numeric(date_vto - settle) / 30),
-    y_bar_15 = ((plazo_inicial + plazo_restante) / plazo_restante) * (365/32) * ((vpv_15/100)^(32/(plazo_inicial + plazo_restante)) - 1) - (plazo_inicial/plazo_restante) * tamar_prom_tna_completa,
-    y_bar_2 = ((plazo_inicial + plazo_restante) / plazo_restante) * (365/32) * ((vpv_2/100)^(32/(plazo_inicial + plazo_restante)) - 1) - (plazo_inicial/plazo_restante) * tamar_prom_tna_completa,
-    y_bar_25 = ((plazo_inicial + plazo_restante) / plazo_restante) * (365/32) * ((vpv_25/100)^(32/(plazo_inicial + plazo_restante)) - 1) - (plazo_inicial/plazo_restante) * tamar_prom_tna_completa,
-    y_bar_3 = ((plazo_inicial + plazo_restante) / plazo_restante) * (365/32) * ((vpv_3/100)^(32/(plazo_inicial + plazo_restante)) - 1) - (plazo_inicial/plazo_restante) * tamar_prom_tna_completa,
-    y_bar_35 = ((plazo_inicial + plazo_restante) / plazo_restante) * (365/32) * ((vpv_35/100)^(32/(plazo_inicial + plazo_restante)) - 1) - (plazo_inicial/plazo_restante) * tamar_prom_tna_completa
+    vpv_16 = price * (1 + .016) ^ (as.numeric(date_vto - settle) / 30),
+    vpv_17 = price * (1 + .017) ^ (as.numeric(date_vto - settle) / 30),
+    vpv_18 = price * (1 + .018) ^ (as.numeric(date_vto - settle) / 30),
+    vpv_19 = price * (1 + .019) ^ (as.numeric(date_vto - settle) / 30),
+    
+    y_bar_15 = ((plazo_inicial + plazo_restante) / plazo_restante) * (365 / 32) * ((vpv_15 / 100) ^ (32 / (plazo_inicial + plazo_restante)) - 1) - (plazo_inicial / plazo_restante) * tamar_prom_tna_completa,
+    y_bar_16 = ((plazo_inicial + plazo_restante) / plazo_restante) * (365 / 32) * ((vpv_16 / 100) ^ (32 / (plazo_inicial + plazo_restante)) - 1) - (plazo_inicial / plazo_restante) * tamar_prom_tna_completa,
+    y_bar_17 = ((plazo_inicial + plazo_restante) / plazo_restante) * (365 / 32) * ((vpv_17 / 100) ^ (32 / (plazo_inicial + plazo_restante)) - 1) - (plazo_inicial / plazo_restante) * tamar_prom_tna_completa,
+    y_bar_18 = ((plazo_inicial + plazo_restante) / plazo_restante) * (365 / 32) * ((vpv_18 / 100) ^ (32 / (plazo_inicial + plazo_restante)) - 1) - (plazo_inicial / plazo_restante) * tamar_prom_tna_completa,
+    y_bar_19 = ((plazo_inicial + plazo_restante) / plazo_restante) * (365 / 32) * ((vpv_19 / 100) ^ (32 / (plazo_inicial + plazo_restante)) - 1) - (plazo_inicial / plazo_restante) * tamar_prom_tna_completa
   )
 
 t_duales_breakeven = duales %>% 
@@ -194,8 +196,8 @@ t_duales_breakeven = duales %>%
 grabaTabla2(variable = t_duales_breakeven, path = path)
   
 df_duales = duales %>% 
-  filter(date==max(date)) %>% 
-  select(ticker, price, tem, tamar_prom_tna_completa, starts_with("y_bar") ) %>% 
+  filter(date == max(date)) %>% 
+  select(ticker, price, tem, tamar_prom_tna_completa, starts_with("y_bar")) %>% 
   as.data.frame() %>% 
   mutate(
     ticker = str_remove(ticker, "_tmr$") 
@@ -212,10 +214,10 @@ df_duales = duales %>%
     `TEM A MKT` = tem,
     `TAMAR PROM HOY` = tamar_prom_tna_completa,
     `TAMAR BE 1.5%` = y_bar_15,
-    `TAMAR BE 2%` = y_bar_2,
-    `TAMAR BE 2.5%` = y_bar_25,
-    `TAMAR BE 3%` = y_bar_3,
-    `TAMAR BE 3.5%` = y_bar_35
+    `TAMAR BE 1.6%` = y_bar_16,
+    `TAMAR BE 1.7%` = y_bar_17,
+    `TAMAR BE 1.8%` = y_bar_18,
+    `TAMAR BE 1.9%` = y_bar_19
   )
 num_cols <- names(df_duales)[sapply(df_duales, is.numeric)]
 
