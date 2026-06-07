@@ -483,7 +483,7 @@ g_lecap_tem = suppressMessages(
       geom_point(size=1) +
       geom_smooth(
         data = dplyr::filter(curva_lecaps %>% filter(date == from | date == to), grepl("_tmr$", ticker)),
-        method = "lm", formula = y ~ poly(x, 2), se = FALSE,
+        method = "lm", formula = y ~ log(x), se = FALSE,
         linewidth = 1, linetype = "dashed", show.legend = FALSE
       ) +
       geom_smooth(
