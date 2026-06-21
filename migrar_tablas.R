@@ -5,20 +5,20 @@ library(functions)
 
 # Config origen
 source_cfg <- list(
-  server = "localhost",
+  server = "local",
   port = 5432,
   db = "data",
   user = "readonly_user",
-  password = "Solo_lee1$"
+  password = "solo_lee"
 )
 
 # Config destino
 dest_cfg <- list(
-  server = "local",
+  server = "localhost",
   port = 5432,
   db = "data",
   user = "postgres",
-  password = "prometeo"
+  password = "Postgresql-1"
 )
 
 # Tablas detectadas en repo + paquetes propios
@@ -61,17 +61,7 @@ dest_cfg <- list(
 # )
 
 tablas <- c(
-  "A3500",
-  "ccl",
-  "comprasMULCBCRA",
-  "forex",
-  "sets",
-  "tamar",
-  "vencTitulos",
-  "bonds",
-  "bond_cashflows",
-  "lecaps",
-  "yields_api_keys"
+  "outstanding_soberanos"
 )
 for (nombre_tabla in tablas) {
   message(sprintf("Migrando tabla: %s", nombre_tabla))
@@ -81,7 +71,7 @@ for (nombre_tabla in tablas) {
     functions::dbGetTable,
     c(list(table = nombre_tabla), source_args)
   )
-  
+
   # if (nombre_tabla == "forex2") {
   #   nombre_tabla = "forex"
   # }

@@ -56,7 +56,7 @@ g_indices_ytd = futures_prices %>%
   geom_line(linewidth = 1) +
   #ggrepel::geom_text_repel(data = valores, show.legend = F, nudge_x = 10) +
   scale_y_continuous(breaks = breaks_extended(10)) +
-  scale_x_date(date_breaks = "3 weeks", labels = label_date(format = "%b-%y", locale = "es")) +
+  scale_x_date(date_breaks = "1 month", labels = label_date(format = "%b-%y", locale = "es")) +
   scale_color_manual(values = grDevices::colorRampPalette(.paleta)(length(unique(futures_prices$symbol)))) +
   labs(title = "EVOLUCION INDICES USA - GOLD - VIX",
        subtitle = paste0("Data al: ", tail(futures_offset, n=1) %>% pull(date)),
