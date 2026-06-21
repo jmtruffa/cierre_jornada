@@ -27,7 +27,7 @@ g_indices = futures_prices %>%
   scale_x_date(date_breaks = "4 year", labels = label_date(format = "%b-%y", locale = "es")) +
   scale_color_manual(values = grDevices::colorRampPalette(.paleta)(length(unique(futures_prices$symbol)))) +
   labs(title = "EVOLUCION INDICES USA - GOLD - VIX",
-       subtitle = paste0("Data al: ", tail(futures_offset, n=1) %>% pull(date)),
+       subtitle = paste0("Data al: ", tail(futures_prices, n=1) %>% pull(date)),
        caption = paste0(.pie, " en base a yahoo finance"),
        x = "",
        y = "USD") +
@@ -59,7 +59,7 @@ g_indices_ytd = futures_prices %>%
   scale_x_date(date_breaks = "1 month", labels = label_date(format = "%b-%y", locale = "es")) +
   scale_color_manual(values = grDevices::colorRampPalette(.paleta)(length(unique(futures_prices$symbol)))) +
   labs(title = "EVOLUCION INDICES USA - GOLD - VIX",
-       subtitle = paste0("Data al: ", tail(futures_offset, n=1) %>% pull(date)),
+       subtitle = paste0("Data al: ", tail(futures_prices, n=1) %>% pull(date)),
        caption = paste0(.pie, " en base a yahoo finance"),
        x = "",
        y = "USD") +
