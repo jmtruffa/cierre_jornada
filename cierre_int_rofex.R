@@ -93,18 +93,21 @@ grabaGrafo(variable = g_rofex_intabierto, path = path)
 dia = as.Date(ifelse(viernes, prev_friday_date, adjust.previous(Sys.Date() - 1, cal = cal))) #adjust.previous(Sys.Date() - 1, cal = cal)
 dia2 = Sys.Date() 
 
-varOI = data[,-c(5)] %>% 
+varOI <- data[,-c(5)] %>% 
   filter(date >= dia & date <= dia2) %>% 
-  #group_by(symbol, pos) %>% 
+  ungroup() %>% 
+  arrange(symbol, date) %>% 
   group_by(symbol) %>% 
   mutate(
-    across(c(OI), ~ . - lag(.,1), .names = "diff_{.col}")
+    diff_OI = OI - lag(OI)
   ) %>% 
   summarise(
-    sumDiffOI = sum(diff_OI, na.rm = T),
-    .groups = 'drop'
+    sumDiffOI = sum(diff_OI, na.rm = TRUE),
+    .groups = "drop"
   ) %>% 
-  summarise(varOI = sum(sumDiffOI, na.rm = T)) %>% 
+  summarise(
+    varOI = sum(sumDiffOI, na.rm = TRUE)
+  ) %>% 
   pull(varOI)
 subtitulo = paste0(
   'Desde el día ', dia, 
