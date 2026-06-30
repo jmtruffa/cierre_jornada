@@ -93,51 +93,60 @@ grabaGrafo(variable = g_rofex_intabierto, path = path)
 dia = as.Date(ifelse(viernes, prev_friday_date, adjust.previous(Sys.Date() - 1, cal = cal))) #adjust.previous(Sys.Date() - 1, cal = cal)
 dia2 = Sys.Date() 
 
-varOI <- data[,-c(5)] %>% 
-  filter(date >= dia & date <= dia2) %>% 
-  ungroup() %>% 
-  arrange(symbol, date) %>% 
-  group_by(symbol) %>% 
-  mutate(
-    diff_OI = OI - lag(OI)
-  ) %>% 
+oi_ini <- data %>%
+  filter(date == as.Date(dia)) %>%
+  group_by(symbol, pos) %>%
   summarise(
-    sumDiffOI = sum(diff_OI, na.rm = TRUE),
+    OI_ini = sum(OI, na.rm = TRUE),
     .groups = "drop"
-  ) %>% 
+  ) %>%
+  rename(pos_ini = pos)
+
+oi_fin <- data %>%
+  filter(date == as.Date(dia2)) %>%
+  group_by(symbol, pos) %>%
   summarise(
-    varOI = sum(sumDiffOI, na.rm = TRUE)
-  ) %>% 
+    OI_fin = sum(OI, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  rename(pos_fin = pos)
+
+var_por_symbol <- full_join(oi_ini, oi_fin, by = "symbol") %>%
+  mutate(
+    OI_ini = replace_na(OI_ini, 0),
+    OI_fin = replace_na(OI_fin, 0),
+    pos = coalesce(pos_fin, pos_ini),
+    diff_OI = OI_fin - OI_ini
+  ) %>%
+  filter(diff_OI != 0) %>%
+  arrange(pos)
+
+
+varOI <- var_por_symbol %>%
+  summarise(varOI = sum(diff_OI, na.rm = TRUE)) %>%
   pull(varOI)
-subtitulo = paste0(
-  'Desde el día ', dia, 
-  ' al ', dia2, 
-  '. Variación de I.A. en el período: ', 
-  format(varOI, big.mark = ".", decimal.mark = ",", scientific = FALSE, nsmall = 0), 
-  ' contratos.'
+
+subtitulo <- paste0(
+  "Variación total: ",
+  label_comma(big.mark = ".", decimal.mark = ",")(varOI),
+  " contratos"
 )
 
-g_rofex_var_int_abierto = data[,-c(5)] %>% 
-  filter(date >= dia & date <= dia2) %>%
-  group_by(symbol, pos) %>% 
-  mutate(
-    across(c(OI), ~ . - lag(.,1), .names = "diff_{.col}")
-  ) %>% 
-  summarise(
-    sumDiffOI = sum(diff_OI, na.rm = T),
-    .groups = 'drop'
-  ) %>% 
-  arrange(pos) %>% 
-  ggplot(aes(x=reorder(symbol, +pos), y=sumDiffOI)) +
+g_rofex_var_int_abierto <- var_por_symbol %>% 
+  ggplot(aes(x = reorder(symbol, pos), y = diff_OI)) +
   theme_usado() +
   geom_bar(stat = "identity", fill = .paleta[1]) +
-  scale_y_continuous(labels = label_comma(big.mark = ".", decimal.mark = ","), breaks = breaks_extended(6)) +
-  labs(title = "VARIACION INTERES ABIERTO FUTUROS DLR POR POSICION",
-       subtitle = subtitulo,
-       y = 'Cantidad de Contratos',
-       x = '',
-       caption = paste0(.pie, " en base a datos de A3"))
-  
+  scale_y_continuous(
+    labels = label_comma(big.mark = ".", decimal.mark = ","),
+    breaks = breaks_extended(6)
+  ) +
+  labs(
+    title = "VARIACION INTERES ABIERTO FUTUROS DLR POR POSICION",
+    subtitle = subtitulo,
+    y = "Cantidad de Contratos",
+    x = "",
+    caption = paste0(.pie, " en base a datos de A3")
+  )
 grabaGrafo(variable = g_rofex_var_int_abierto, path = path)
 
 
