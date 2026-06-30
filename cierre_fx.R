@@ -450,7 +450,7 @@ g_fx = suppressMessages(
       pivot_longer(!date) %>% 
       ggplot(aes(x=date, y=value, color=name)) +
       theme_usado() +
-      geom_line(linewidth = 1) +
+      geom_line(linewidth = 1, na.rm = TRUE) +
       geom_text_repel(data = valores, aes(label = format(round(value,0), big.mark = ".", decimal.mark = ",")), 
                       nudge_y = 10,
                       nudge_x = 10, 
