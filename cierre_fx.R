@@ -445,9 +445,8 @@ g_fx = suppressMessages(
   suppressWarnings(
     fx %>% filter(date >= "2025-01-01") %>% 
       select(date, mepAL, ccl, A3500) %>% 
-      #drop_na() %>% tail()
-      select(date, mepAL, ccl, A3500) %>% 
       pivot_longer(!date) %>% 
+      filter(!is.na(value)) %>% 
       ggplot(aes(x=date, y=value, color=name)) +
       theme_usado() +
       geom_line(linewidth = 1, na.rm = TRUE) +
