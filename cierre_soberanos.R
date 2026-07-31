@@ -3,7 +3,7 @@ curvaAR = function(from = "2020-09-15", to = Sys.Date(), comi = 0.0) {
   if (from < "2020-09-15") {
     stop("No puede seleccionar una fecha anterior al canje. 2020-09-15")
   }
-  business_calendar <- create.calendar('my_calendar', weekdays = c('saturday','sunday'))
+  business_calendar = bizdays::create.calendar('cal', functions::getFeriados(server = server, port = port), weekdays = c('saturday','sunday'))
   tickers = c(
     'AL29D',
     'AL30D',
@@ -27,9 +27,9 @@ curvaAR = function(from = "2020-09-15", to = Sys.Date(), comi = 0.0) {
                              type = type, 
                              from = from, 
                              to = to, 
-                             settlement = 'A-48HS')
+                             settlement = 'A-24HS')
   curva = curva[[1]]
-  curva$ticker = sapply(curva$ticker, str_sub, "1" ,"-2", USE.NAMES = FALSE)
+  #curva$ticker = sapply(curva$ticker, str_sub, "1" ,"-2", USE.NAMES = FALSE)
   curva = cbind(curva, getYields(curva$ticker,
                                    settlementDate = as.character(bizdays::offset(curva$date, ifelse(settlement == "INMEDIATA", 0, 2), cal = business_calendar)),
                                    precios = curva$price, 
@@ -84,8 +84,8 @@ spread30_35 = globales %>%
   select(ticker, date, yield) %>% 
   pivot_wider(names_from = ticker, values_from = yield) %>% 
   mutate(
-    `Spread NY` = GD35 - GD30,
-    `Spread Bonar` = AL35 - AL30
+    `Spread NY` = GD35D - GD30D,
+    `Spread Bonar` = AL35D - AL30D
   ) %>% 
   select(date, `Spread NY`, `Spread Bonar`) %>%
   pivot_longer(!date) %>% 
