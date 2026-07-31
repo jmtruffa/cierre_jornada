@@ -13,6 +13,7 @@ curvaAR = function(from = "2020-09-15", to = Sys.Date(), comi = 0.0) {
     'AN29D',
     'AO27D',
     'AO28D',
+    'AO29D',
     'GD29D',
     'GD30D',
     'GD35D',
