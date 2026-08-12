@@ -1,9 +1,24 @@
 max_fecha_boncer = functions::dbExecuteQuery(query = "select max(date) from precios_bonos_cer", server = server, port = port) %>% pull()
 methodsPPI::getPPILogin() # Vuelvo a ponerlo total chequea que esté vigente.
-tickers_boncer = map_dfr(.x = "bonosCER", .f = methodsPPI::sets, server = server, port = port)
-vtos = dbGetTable("vencTitulos", server = server, port = port)
-tickers_boncer = tickers_boncer %>% left_join(vtos, join_by(ticker)) %>% 
-  filter(vto > from)
+query = glue::glue("
+SELECT DISTINCT
+    bt.ticker,
+    db.maturity AS vto,
+    bt.tipo_instr_temp_ppi as type
+FROM bonds_db db
+JOIN bonds_tickers bt 
+    ON db.id = bt.bond_id
+WHERE db.maturity >= '{as.Date(from)}'
+  AND db.index_type_id = 1
+  AND bt.cotizacion = 1
+ORDER BY bt.ticker
+")
+tickersBonosCER = dbExecuteQuery(query = query, server = server, port = port)
+
+#tickers_boncer = map_dfr(.x = "bonosCER", .f = methodsPPI::sets, server = server, port = port)
+#vtos = dbGetTable("vencTitulos", server = server, port = port)
+#tickers_boncer = tickers_boncer %>% left_join(vtos, join_by(ticker)) %>% 
+#  filter(vto > from)
 
 boncer_prices = methodsPPI::check_getPPIPrices(
   token$token, 

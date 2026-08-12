@@ -33,18 +33,25 @@ max_fecha_dl = dbExecuteQuery(
 
 methodsPPI::getPPILogin()  # chequea que el login esté vigente
 
-tickersDL = purrr::map_dfr(
-  .x = "bonosDL",
-  .f = methodsPPI::sets,
-  server = server,
-  port   = port
+query = sprintf("select bt.ticker as ticker, bd.maturity as vto, bt.tipo_instr_temp_ppi as type
+from bonds_db bd join bonds_tickers bt on bd.id = bt.bond_id
+where bd.currency = 'Dollar-Linked' and bd.issuer = 'República Argentina' and bt.cotizacion = 1 and bd.maturity >= DATE '%s'",
+                format(from,"%Y-%m-%d")
 )
+tickersDL=functions::dbExecuteQuery(query = query, server = server, port = port)
 
-vtos = dbGetTable("vencTitulos", server = server, port = port)
+#tickersDL = purrr::map_dfr(
+#  .x = "bonosDL",
+#  .f = methodsPPI::sets,
+#  server = server,
+#  port   = port
+#)
 
-tickersDL = tickersDL %>%
-  dplyr::left_join(vtos, dplyr::join_by(ticker)) %>%
-  dplyr::filter(vto > from)
+#vtos = dbGetTable("vencTitulos", server = server, port = port)
+
+#tickersDL = tickersDL %>%
+#  dplyr::left_join(vtos, dplyr::join_by(ticker)) %>%
+#  dplyr::filter(vto > from)
 
 dl_prices = methodsPPI::check_getPPIPrices(
   token$token,
