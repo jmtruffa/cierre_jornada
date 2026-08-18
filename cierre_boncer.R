@@ -13,7 +13,7 @@ WHERE db.maturity >= '{as.Date(from)}'
   AND bt.cotizacion = 1
 ORDER BY bt.ticker
 ")
-tickersBonosCER = dbExecuteQuery(query = query, server = server, port = port)
+tickers_boncer = dbExecuteQuery(query = query, server = server, port = port)
 
 #tickers_boncer = map_dfr(.x = "bonosCER", .f = methodsPPI::sets, server = server, port = port)
 #vtos = dbGetTable("vencTitulos", server = server, port = port)
