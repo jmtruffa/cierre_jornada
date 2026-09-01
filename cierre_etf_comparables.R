@@ -32,4 +32,4 @@ g_etfs = futures_prices %>%
   theme(legend.title = element_blank()) +
   facet_wrap(~symbol, scales = "free_y")
 
-grabaGrafo(variable = g_etfs, path = path)
+grabaGrafo(variable = g_etfs), path = path)
